@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Blue & Cyan Brand Style (Light Mode) */
+    --bg-page: #F0F4F9;
+    --bg-surface: #FFFFFF;
+    --bg-surface-elevated: #F8FAFC;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --border-line: #D0DBEA;
+    --border-subtle: #E2E8F0;
+    --accent: #1D4ED8; /* Corporate Royal Blue */
+    --accent-hover: #1E40AF;
+    --accent-cyan: #0284C7; /* Cyan Accent */
+    --accent-subtle: rgba(2, 132, 199, 0.08);
+    --accent-border: rgba(2, 132, 199, 0.3);
+    --badge-bg: #E2E8F0;
+    --card-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+    --card-shadow-hover: 0 16px 36px -4px rgba(2, 132, 199, 0.16), 0 6px 16px -2px rgba(15, 23, 42, 0.06);
+    --glow-cyan: 0 0 35px -5px rgba(2, 132, 199, 0.25);
+  }
+
+  .dark {
+    /* Blue & Cyan Brand Style (Dark Mode) */
+    --bg-page: #080D1A; /* Deep Obsidian Blue */
+    --bg-surface: #0F172A; /* Midnight Navy Surface */
+    --bg-surface-elevated: #1E293B;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --border-line: #1E293B;
+    --border-subtle: #172033;
+    --accent: #38BDF8; /* Electric Cyan */
+    --accent-hover: #7DD3FC;
+    --accent-cyan: #38BDF8;
+    --accent-subtle: rgba(56, 189, 248, 0.12);
+    --accent-border: rgba(56, 189, 248, 0.35);
+    --badge-bg: #1E293B;
+    --card-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.5);
+    --card-shadow-hover: 0 20px 40px -4px rgba(56, 189, 248, 0.2), 0 8px 20px -2px rgba(0, 0, 0, 0.6);
+    --glow-cyan: 0 0 40px -5px rgba(56, 189, 248, 0.35);
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: 'Heebo', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    transition: background-color 220ms ease, color 220ms ease, border-color 220ms ease;
+    overflow-x: hidden;
+  }
+
+  html[dir="ltr"] body {
+    font-family: 'Plus Jakarta Sans', 'Heebo', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Tabular numerals for prices, specs, and metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 3D Perspective Container */
+.perspective-container {
+  perspective: 1200px;
+}
+
+/* 3D Floating Float Keyframes */
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.4deg);
+  }
+}
+
+.animate-float {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+/* Subtle metallic/cyan lighting sheen */
+@keyframes metallicSheen {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.metallic-sheen {
+  background: linear-gradient(
+    115deg,
+    transparent 15%,
+    rgba(255, 255, 255, 0.05) 30%,
+    rgba(56, 189, 248, 0.18) 50%,
+    rgba(255, 255, 255, 0.05) 70%,
+    transparent 85%
+  );
+  background-size: 200% 100%;
+  animation: metallicSheen 7s infinite ease-in-out;
+}
+
+/* Pulse glow for cyan accents */
+@keyframes cyanPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+  }
+}
+
+.glow-cyan-pulse {
+  animation: cyanPulse 5s ease-in-out infinite;
+}
+
+/* Image hover motion defaults */
+.image-motion {
+  transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1), filter 500ms ease;
+}
+
+.image-motion:hover {
+  transform: scale(1.04) translateY(-3px);
+}
+
+/* Smooth focus visible styles */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-page);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-line);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}

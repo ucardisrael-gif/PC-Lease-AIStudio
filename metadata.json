@@ -1,0 +1,6 @@
+{
+  "name": "PC-LEASE",
+  "description": "ליסינג והשכרה של מחשבים ניידים עסקיים מחודשים. דגמי Dell, HP ו-Lenovo בתשלום חודשי קבוע.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
