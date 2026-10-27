@@ -71,6 +71,8 @@ export interface SiteContent {
   };
 }
 
+export type QuoteStatus = 'pending' | 'approved' | 'rejected' | 'pending_review' | 'quote_prepared';
+
 export interface QuoteRequest {
   id: string;
   createdAt: string;
@@ -90,5 +92,15 @@ export interface QuoteRequest {
   taxId?: string;
   city?: string;
   notes?: string;
-  status: 'pending_review' | 'quote_prepared';
+  status: QuoteStatus;
+  contractId?: string;
+  orderId?: string;
+  assignedManager?: string;
+  rejectionReason?: string;
+  approvedDiscountPercent?: number;
+  customMonthlyRateILS?: number;
+  assignedSerialNumbers?: string[];
+  otpSentAt?: string;
+  otpCode?: string;
 }
+

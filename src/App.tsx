@@ -10,12 +10,18 @@ import { FAQSection } from './components/FAQSection';
 import { Footer } from './components/Footer';
 import { ProductModal } from './components/ProductModal';
 import { CheckoutModal } from './components/CheckoutModal';
-import { ClientLoginModal } from './components/ClientLoginModal';
+import { CustomerPortal } from './components/CustomerPortal';
+import { DealerPortal } from './components/DealerPortal';
 import { SiteEditor } from './components/SiteEditor';
 import { ExportModal } from './components/ExportModal';
+import { OwnerBackOffice } from './components/backoffice/OwnerBackOffice';
+import { UnifiedAuthModal } from './components/UnifiedAuthModal';
 
 import { AcquisitionMode, Language, LaptopProduct, QuoteRequest, SiteContent, Theme } from './types';
 import { INITIAL_PRODUCTS } from './data/initialProducts';
+import { UserAccount } from './domain/schema';
+import { CURRENT_OWNER_USER, SEEDED_QUOTES } from './data/mockDatabase';
+
 
 const INITIAL_SITE_CONTENT: SiteContent = {
   hero: {
@@ -86,16 +92,24 @@ export default function App() {
   const [products, setProducts] = useState<LaptopProduct[]>(INITIAL_PRODUCTS);
   const [content, setContent] = useState<SiteContent>(INITIAL_SITE_CONTENT);
   const [selectedProduct, setSelectedProduct] = useState<LaptopProduct>(INITIAL_PRODUCTS[0]);
+  const [quotes, setQuotes] = useState<QuoteRequest[]>(SEEDED_QUOTES);
+
+
+  // Auth & User State (Default logged in as Owner for first stage access)
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(CURRENT_OWNER_USER);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Modals state
   const [productDetailsItem, setProductDetailsItem] = useState<LaptopProduct | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isClientLoginOpen, setIsClientLoginOpen] = useState(false);
+  const [isDealerPortalOpen, setIsDealerPortalOpen] = useState(false);
   const [checkoutProduct, setCheckoutProduct] = useState<LaptopProduct>(INITIAL_PRODUCTS[0]);
   const [checkoutMode, setCheckoutMode] = useState<AcquisitionMode>('lease');
   const [checkoutQuantity, setCheckoutQuantity] = useState<number>(3);
   const [checkoutRentalDays, setCheckoutRentalDays] = useState<number>(30);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isOwnerBackOfficeOpen, setIsOwnerBackOfficeOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Handlers
@@ -133,10 +147,14 @@ export default function App() {
       <Header
         lang={lang}
         theme={theme}
+        currentUser={currentUser}
         onToggleLang={handleToggleLang}
         onToggleTheme={handleToggleTheme}
-        onOpenClientLogin={() => setIsClientLoginOpen(true)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={() => setCurrentUser(null)}
+        onOpenOwnerBackOffice={() => setIsOwnerBackOfficeOpen(true)}
+        onOpenClientPortal={() => setIsClientLoginOpen(true)}
+        onOpenDealerPortal={() => setIsDealerPortalOpen(true)}
         onOpenExport={() => setIsExportOpen(true)}
       />
 
@@ -227,14 +245,22 @@ export default function App() {
         rentalDays={checkoutRentalDays}
         onClose={() => setIsCheckoutOpen(false)}
         onSubmitQuote={(req: QuoteRequest) => {
-          console.log('Quote Request registered:', req);
+          setQuotes((prev) => [req, ...prev]);
         }}
       />
 
-      <ClientLoginModal
+      <CustomerPortal
         lang={lang}
         isOpen={isClientLoginOpen}
         onClose={() => setIsClientLoginOpen(false)}
+        currentUser={currentUser}
+      />
+
+      <DealerPortal
+        lang={lang}
+        isOpen={isDealerPortalOpen}
+        onClose={() => setIsDealerPortalOpen(false)}
+        currentUser={currentUser}
       />
 
       <SiteEditor
@@ -250,6 +276,35 @@ export default function App() {
         onPublishLive={(newContent, newProducts) => {
           setContent(newContent);
           setProducts(newProducts);
+        }}
+      />
+
+      {/* Owner Back Office Workstation */}
+      {isOwnerBackOfficeOpen && (
+        <OwnerBackOffice
+          lang={lang}
+          theme={theme}
+          onToggleLang={handleToggleLang}
+          onToggleTheme={handleToggleTheme}
+          content={content}
+          products={products}
+          quotes={quotes}
+          onUpdateQuotes={setQuotes}
+          onUpdateContentAndProducts={(newContent, newProducts) => {
+            setContent(newContent);
+            setProducts(newProducts);
+          }}
+          onClose={() => setIsOwnerBackOfficeOpen(false)}
+        />
+      )}
+
+      {/* Unified Authentication Modal (Login / Register / Forgot Password) */}
+      <UnifiedAuthModal
+        lang={lang}
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
         }}
       />
 

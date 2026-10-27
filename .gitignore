@@ -1,8 +1,9 @@
 node_modules/
-build/
 dist/
-coverage/
+public/pc-lease-project.zip
+.env
+.env.local
 .DS_Store
 *.log
-.env*
-!.env.example
+.aistudio/
+
