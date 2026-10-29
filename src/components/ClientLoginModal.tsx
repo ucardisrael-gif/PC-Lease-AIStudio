@@ -1,218 +1,79 @@
-import React, { useState } from 'react';
-import { X, User, ShieldCheck, Laptop, FileText, ArrowRight, ArrowLeft, LogOut, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { Language } from '../types';
+import { CustomerOrders } from './CustomerOrders';
+import { CustomerProfile } from './CustomerProfile';
 
-interface ClientLoginModalProps {
-  lang: Language;
-  isOpen: boolean;
-  onClose: () => void;
-}
+type User = { email: string; role: 'admin' | 'customer'; permissions?: string[]; displayName?: string | null;emailVerified?:boolean };
+type RequestRecord = { id: string; created_at: string; quantity: number; notification_status: string; contact_json: { companyName: string; contactName: string; email: string; phone: string; notes: string }; product_snapshot_json: { model: string }; tariff_snapshot_json: { mode: string } };
+interface Props { lang: Language; isOpen: boolean; onClose: () => void; admin?: boolean; onAdminAccess?: (email: string) => void; onSessionChange?: (user: User | null) => void; }
 
-export const ClientLoginModal: React.FC<ClientLoginModalProps> = ({
-  lang,
-  isOpen,
-  onClose,
-}) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [email, setEmail] = useState('demo@company.co.il');
-  const [password, setPassword] = useState('••••••••');
-  const [isLoading, setIsLoading] = useState(false);
-
+export const ClientLoginModal: React.FC<Props> = ({ lang, isOpen, onClose, admin = false, onAdminAccess, onSessionChange }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [registration,setRegistration]=useState({firstName:'',lastName:'',phone:'',companyName:''});
+  const [page, setPage] = useState<'login' | 'register' | 'forgot' | 'reset' | 'verify'>('login');
+  const [user, setUser] = useState<User | null>(null);
+  const [requests, setRequests] = useState<RequestRecord[] | null>(null);
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [resetToken, setResetToken] = useState('');
+  const [verifyToken,setVerifyToken]=useState('');
+  const [showMyOrders,setShowMyOrders]=useState(false);
+  const [showProfile,setShowProfile]=useState(false);
+  const [profileUnsafe,setProfileUnsafe]=useState(false);
+  const he = lang === 'he';
+  const allowProfileExit=()=>!profileUnsafe||window.confirm(he?'יש שינויים בפרופיל שלא נשמרו או שהשמירה טרם הושלמה. להמשיך?':'Profile changes are unsaved or saving is still in progress. Continue?');
+  useEffect(() => {
+    const processLink=()=>{const match=window.location.hash.match(/^#reset=([a-f0-9]{64})$/);if(match){setResetToken(match[1]);setPage('reset');history.replaceState(null,'',location.pathname+location.search);return;}const verification=window.location.hash.match(/^#verify=([a-f0-9]{64})$/);if(verification){setVerifyToken(verification[1]);setPage('verify');history.replaceState(null,'',location.pathname+location.search);}};
+    processLink();window.addEventListener('hashchange',processLink);return()=>window.removeEventListener('hashchange',processLink);
+  }, []);
+  useEffect(() => {
+    if (!isOpen) { setUser(null);setShowMyOrders(false);setShowProfile(false);setRequests(null);return; }
+    const controller=new AbortController();fetch('/api/auth/me',{signal:controller.signal}).then(r => r.ok ? r.json() : Promise.reject()).then(data => { setUser(data.user); onSessionChange?.(data.user); }).catch(() => {if(!controller.signal.aborted)setMessage(he ? 'השירות אינו זמין' : 'Service unavailable');});return()=>controller.abort();
+  }, [isOpen, he]);
   if (!isOpen) return null;
-
-  const isRtl = lang === 'he';
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsLoggedIn(true);
-    }, 500);
+  const post = async (path: string, data: object) => {
+    const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    if (!response.ok) throw new Error('failed');
+    return response.json();
   };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setMessage('');
+    try {
+      if (page === 'login') { const result = await post('/api/auth/login', { email, password }); setUser(result.user); onSessionChange?.(result.user); setPassword(''); onClose(); }
+      else if (page === 'register') { await post('/api/auth/register', { email, password,...registration }); setPage('login'); setPassword('');setRegistration({firstName:'',lastName:'',phone:'',companyName:''}); setMessage(he ? 'החשבון נוצר. אפשר להתחבר.' : 'Account created. You can now sign in.'); }
+      else if (page === 'forgot') { await post('/api/auth/reset-request', { email }); setMessage(he ? 'אם החשבון קיים ושירות הדוא״ל זמין, ייתכן שיישלח קישור לאיפוס. בדקו את תיבת הדואר ונסו שוב מאוחר יותר אם לא התקבל.' : 'If the account exists and email service is available, a reset link may be sent. Check your inbox and try again later if it does not arrive.'); }
+      else if (page === 'verify') { await post('/api/auth/verify-email',{token:verifyToken});setPage('login');setVerifyToken('');const response=await fetch('/api/auth/me');if(response.ok){const data=await response.json();setUser(data.user);onSessionChange?.(data.user);}setMessage(he?'כתובת הדוא״ל אומתה.':'Email address verified.'); }
+      else { await post('/api/auth/reset', { token: resetToken, password }); setPage('login'); setPassword(''); setResetToken(''); setMessage(he ? 'הסיסמה עודכנה. אפשר להתחבר.' : 'Password updated. You can now sign in.'); }
+    } catch { setMessage(he ? 'הפעולה נכשלה. בדקו את הפרטים ונסו שוב.' : 'The action failed. Check your details and try again.'); }
+    finally { setLoading(false); }
   };
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
-    >
-      <div className="relative w-full max-w-lg rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-line)] shadow-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 end-4 p-2 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--badge-bg)] transition-colors cursor-pointer"
-          aria-label="Close"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {isLoggedIn ? (
-          /* Logged In: Client Management Dashboard */
-          <div className="space-y-6 animate-in fade-in">
-            <div className="flex items-center justify-between pb-4 border-b border-[var(--border-line)]">
-              <div>
-                <span className="text-xs uppercase font-bold text-sky-600 dark:text-sky-400">
-                  {isRtl ? 'אזור אישי ללקוחות' : 'Client Management Portal'}
-                </span>
-                <h3 className="text-xl font-bold text-[var(--text-primary)]">
-                  אקמי טכנולוגיות בע״מ
-                </h3>
-                <span className="text-xs text-[var(--text-secondary)]">ח.פ 51-584920-1 · לקוח פעיל</span>
-              </div>
-
-              <button
-                onClick={handleLogout}
-                title={isRtl ? 'התנתק' : 'Log out'}
-                className="p-2 rounded-lg border border-[var(--border-line)] text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Active Subscriptions Summary */}
-            <div className="p-4 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 space-y-3">
-              <div className="flex items-center justify-between text-xs font-bold text-sky-800 dark:text-sky-300">
-                <span className="flex items-center gap-1.5">
-                  <Laptop className="w-4 h-4 text-sky-600" />
-                  <span>ציוד פעיל בליסינג</span>
-                </span>
-                <span className="bg-sky-600 text-white px-2 py-0.5 rounded text-[11px]">3 מכשירים</span>
-              </div>
-
-              <div className="space-y-1.5 text-xs text-[var(--text-secondary)]">
-                <div className="flex justify-between">
-                  <span>דגם:</span>
-                  <span className="font-bold text-[var(--text-primary)] font-mono">Dell Latitude 7420 (Core i5)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>חיוב חודשי כולל:</span>
-                  <span className="font-bold text-sky-600 dark:text-sky-400 font-mono tabular-nums">₪297 / חודש (לפני מע״מ)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>תום תקופת הסכם:</span>
-                  <span className="font-mono">15.11.2028 (31 חודשים נותרו)</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions for client */}
-            <div className="space-y-2">
-              <div className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                פעולות מהירות
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={onClose}
-                  className="p-3 rounded-lg border border-[var(--border-line)] hover:border-blue-500 text-start text-xs font-semibold transition-colors"
-                >
-                  <div className="text-[var(--text-primary)]">הוספת מחשבים להסכם</div>
-                  <div className="text-[10px] text-[var(--text-secondary)]">הרחבת הציוד לעובדים חדשים</div>
-                </button>
-                <button
-                  onClick={onClose}
-                  className="p-3 rounded-lg border border-[var(--border-line)] hover:border-blue-500 text-start text-xs font-semibold transition-colors"
-                >
-                  <div className="text-[var(--text-primary)]">קריאת שירות / תמיכה</div>
-                  <div className="text-[10px] text-[var(--text-secondary)]">החלפת מכשיר או סיוע טכני</div>
-                </button>
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-              >
-                סגור
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Login Form */
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div className="text-start">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold uppercase rounded bg-blue-50 dark:bg-sky-950/60 text-blue-700 dark:text-sky-300 border border-blue-200 dark:border-sky-800 mb-2">
-                <User className="w-3.5 h-3.5 text-blue-600" />
-                <span>{isRtl ? 'כניסה ללקוחות קיימים' : 'Client Portal Login'}</span>
-              </div>
-
-              <h2 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">
-                {isRtl ? 'פאנל ניהול ציוד עסקי' : 'Customer Account Login'}
-              </h2>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
-                {isRtl
-                  ? 'צפייה בהסכמי הליסינג, מצב התשלומים והזמנת מחשבים נוספים.'
-                  : 'Manage active leases, billing schedules, and request additional fleet units.'}
-              </p>
-            </div>
-
-            <div className="space-y-3 text-start">
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                  {isRtl ? 'דוא״ל מורשה' : 'Business Email'}
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border-line)] bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                  {isRtl ? 'סיסמה / קוד ארגוני' : 'Password'}
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border-line)] bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] text-[var(--text-secondary)]">
-              {isRtl
-                ? 'לקוחות חדשים מקבלים פרטי כניסה אוטומטית עם חתימת הסכם הליסינג הראשון.'
-                : 'Login credentials are issued automatically upon signing the initial lease.'}
-            </div>
-
-            <div className="pt-2 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
-              >
-                {isRtl ? 'ביטול' : 'Cancel'}
-              </button>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex items-center gap-2 px-6 py-2.5 text-xs sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 dark:bg-sky-500 dark:hover:bg-sky-400 dark:text-slate-950 rounded-lg shadow transition-all cursor-pointer"
-              >
-                {isLoading ? (
-                  <span>{isRtl ? 'מתחבר...' : 'Connecting...'}</span>
-                ) : (
-                  <>
-                    <span>{isRtl ? 'התחבר למערכת' : 'Log In'}</span>
-                    {isRtl ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
+  const loadRequests = async () => {
+    try { const response = await fetch('/api/admin/requests'); if (!response.ok) throw new Error(); setRequests((await response.json()).requests); }
+    catch { setMessage(he ? 'לא ניתן לטעון בקשות.' : 'Could not load requests.'); }
+  };
+  return <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-black/70 backdrop-blur-md">
+    <div className="relative w-full max-w-lg rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-line)] shadow-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
+      <button onClick={()=>{if(allowProfileExit())onClose();}} aria-label="Close" className="absolute top-4 end-4 p-2"><X className="w-5 h-5" /></button>
+      <h2 className="text-2xl font-black mb-4">{admin ? (he ? 'ניהול האתר' : 'Administration') : (he ? 'חשבון לקוח' : 'Customer account')}</h2>
+      {user && page!=='verify' ? <div className="space-y-4">
+        <p className="text-sm">{user.email} · {user.role}</p>
+        {!admin&&<div className="text-sm"><p>{user.emailVerified?(he?'כתובת הדוא״ל אומתה':'Email verified'):(he?'כתובת הדוא״ל טרם אומתה':'Email not yet verified')}</p>{!user.emailVerified&&<button type="button" disabled={loading} className="underline text-blue-600" onClick={async()=>{setLoading(true);setMessage('');try{await post('/api/auth/verification-request',{lang});setMessage(he?'נשלח קישור לאימות כתובת הדוא״ל.':'A verification link was sent.');}catch{setMessage(he?'לא ניתן לשלוח קישור. נסו שוב מאוחר יותר.':'Could not send the link. Try again later.');}finally{setLoading(false);}}}>{he?'שליחת קישור לאימות':'Send verification link'}</button>}</div>}
+        {!admin&&<><button type="button" className="underline text-blue-600 me-4" onClick={()=>{if(!showProfile||allowProfileExit())setShowProfile(value=>!value);}}>{he?'הפרטים שלי':'My profile'}</button>{showProfile&&<CustomerProfile key={user.email} lang={lang} onUnsafeChange={setProfileUnsafe} onSessionChange={next=>{setUser(next);onSessionChange?.(next);}}/>}</>}
+        {!admin&&<><button type="button" className="underline text-blue-600" onClick={()=>setShowMyOrders(value=>!value)}>{he?'ההזמנות שלי':'My orders'}</button>{showMyOrders&&<CustomerOrders key={user.email} lang={lang}/>}</>}
+        {admin && user.role !== 'admin' && <p className="text-sm">{he ? 'אין הרשאת מנהל לחשבון זה.' : 'This account does not have administrator access.'}</p>}
+        {admin && user.role === 'admin' && <div className="flex gap-3 flex-wrap"><button onClick={loadRequests} className="px-4 py-2 rounded bg-[var(--accent)] text-white">{he ? 'בקשות שמורות' : 'Saved requests'}</button><button onClick={() => onAdminAccess?.(user.email)} className="px-4 py-2 rounded border border-[var(--border-line)]">{he ? 'Back Office' : 'Back Office'}</button></div>}
+        {requests && <div className="space-y-3">{requests.length === 0 && <p>{he ? 'אין בקשות.' : 'No requests.'}</p>}{requests.map(r => <div key={r.id} className="p-4 rounded border border-[var(--border-line)] text-sm space-y-1"><p>{r.product_snapshot_json.model} · {r.quantity} · {r.tariff_snapshot_json.mode}</p><p>{r.contact_json.companyName} · {r.contact_json.contactName}</p><p><bdi>{r.contact_json.email} · {r.contact_json.phone}</bdi></p><p>{r.contact_json.notes}</p><p className="text-xs text-[var(--text-secondary)]">{new Date(r.created_at).toLocaleString()} · {r.notification_status}</p></div>)}</div>}
+        <button onClick={async () => { if(!allowProfileExit())return;try { await post('/api/auth/logout', {}); setUser(null); onSessionChange?.(null); setRequests(null); setShowMyOrders(false); } catch { setMessage(he ? 'לא ניתן להתנתק.' : 'Could not sign out.'); } }} className="underline text-sm">{he ? 'התנתקות' : 'Sign out'}</button>
+      </div> : <form onSubmit={submit} className="space-y-4">
+        {page==='register'&&<div className="grid sm:grid-cols-2 gap-3">{([['firstName','שם פרטי','First name','given-name',true],['lastName','שם משפחה','Last name','family-name',true],['phone','טלפון','Phone','tel',true],['companyName','חברה (לא חובה)','Company (optional)','organization',false]] as const).map(([key,h,en,autocomplete,required])=><label key={key} className="block text-sm">{he?h:en}<input className="mt-1 w-full px-3 py-2 rounded border border-[var(--border-line)] bg-[var(--bg-page)]" type={key==='phone'?'tel':'text'} autoComplete={autocomplete} maxLength={200} required={required} value={registration[key]} onChange={e=>setRegistration({...registration,[key]:e.target.value})}/></label>)}</div>}
+        {page !== 'reset' && page!=='verify' && <label className="block text-sm">{he ? 'דוא״ל' : 'Email'}<input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1 w-full px-3 py-2 rounded border border-[var(--border-line)] bg-[var(--bg-page)]" /></label>}
+        {page !== 'forgot' && page!=='verify' && <label className="block text-sm">{he ? 'סיסמה (לפחות 12 תווים)' : 'Password (at least 12 characters)'}<input type="password" required minLength={page === 'login' ? undefined : 12} autoComplete={page === 'login' ? 'current-password' : 'new-password'} value={password} onChange={e => setPassword(e.target.value)} className="mt-1 w-full px-3 py-2 rounded border border-[var(--border-line)] bg-[var(--bg-page)]" /></label>}
+        <button disabled={loading} className="px-5 py-2 rounded bg-[var(--accent)] text-white">{loading ? '…' : page === 'login' ? (he ? 'התחברות' : 'Sign in') : page === 'register' ? (he ? 'יצירת חשבון' : 'Create account') : page === 'forgot' ? (he ? 'שליחת קישור' : 'Send reset link') : page==='verify'?(he?'אימות כתובת דוא״ל':'Confirm email'):(he ? 'שמירת סיסמה' : 'Save password')}</button>
+        <div className="flex gap-3 flex-wrap text-sm"><button type="button" onClick={() => { setPage('login'); setMessage(''); }} className="underline">{he ? 'התחברות' : 'Sign in'}</button><button type="button" onClick={() => { setPage('register'); setMessage(''); }} className="underline">{he ? 'הרשמה' : 'Register'}</button><button type="button" onClick={() => { setPage('forgot'); setMessage(''); }} className="underline">{he ? 'שכחתי סיסמה' : 'Forgot password'}</button></div>
+      </form>}
+      {message && <p role="status" className="mt-4 text-sm text-[var(--text-secondary)]">{message}</p>}
     </div>
-  );
+  </div>;
 };

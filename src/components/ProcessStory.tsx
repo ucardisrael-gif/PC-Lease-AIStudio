@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
 import { Laptop, CalendarCheck2, ShieldCheck, Truck, Check } from 'lucide-react';
 import { Language } from '../types';
-import { TRANSLATIONS } from '../data/translations';
+import { sectionDefaults } from '../data/section-defaults.mjs';
+
+export type StoryContent = typeof sectionDefaults.story;
+export type StoryBlock = { content: StoryContent; version: number };
 
 interface ProcessStoryProps {
   lang: Language;
+  content?: StoryContent;
 }
 
-export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang }) => {
+export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang, content = sectionDefaults.story }) => {
   const [activeStep, setActiveStep] = useState<number>(0);
-  const t = TRANSLATIONS[lang];
+  const suffix = lang === 'he' ? 'He' : 'En';
+  const v = (key: string) => content[`${key}${suffix}` as keyof StoryContent] as string;
+  const steps = Array.from({ length: 4 }, (_, i) => ({ num: String(i + 1).padStart(2, '0'), title: v(`step${i + 1}Title`), desc: v(`step${i + 1}Desc`), badge: v(`step${i + 1}Badge`) }));
 
   const stepIcons = [
     <Laptop className="w-6 h-6" key="icon-0" />,
@@ -18,25 +24,26 @@ export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang }) => {
     <Truck className="w-6 h-6" key="icon-3" />,
   ];
 
+  if (!content.visible) return null;
   return (
     <section id="story" className="py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-surface)]">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1504px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-14">
           <span className="text-xs font-bold uppercase tracking-widest text-[var(--accent)]">
-            {t.story.kicker}
+            {v('kicker')}
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)] mt-2">
-            {t.story.title}
+            {v('title')}
           </h2>
           <p className="text-sm sm:text-base text-[var(--text-secondary)] mt-3">
-            {t.story.subtitle}
+            {v('subtitle')}
           </p>
         </div>
 
         {/* 4 Interactive Process Steps Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          {t.story.steps.map((step, idx) => {
+          {steps.map((step, idx) => {
             const isActive = activeStep === idx;
             return (
               <button
@@ -89,13 +96,13 @@ export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang }) => {
         <div className="rounded-xl bg-[var(--bg-page)] border border-[var(--border-line)] p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-2">
             <span className="text-xs uppercase font-bold tracking-wider text-[var(--accent)]">
-              שלב {t.story.steps[activeStep].num} בתהליך
+              {lang === 'he' ? `שלב ${steps[activeStep].num} בתהליך` : `Step ${steps[activeStep].num}`}
             </span>
             <h3 className="text-xl font-bold text-[var(--text-primary)]">
-              {t.story.steps[activeStep].title}
+              {steps[activeStep].title}
             </h3>
             <p className="text-sm text-[var(--text-secondary)] max-w-2xl leading-relaxed">
-              {t.story.steps[activeStep].desc} המומחים שלנו מלווים אתכם משלב האפיון הראשוני ועד מסירת המחשבים הפיזית במשרד, עם שקיפות מלאה וללא הפתעות בתשלומים.
+              {steps[activeStep].desc} {v('detail')}
             </p>
           </div>
 
@@ -103,7 +110,7 @@ export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang }) => {
             href="#calculator"
             className="whitespace-nowrap px-6 py-3 text-xs sm:text-sm font-bold text-white bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-md shadow transition-colors"
           >
-            התחל עכשיו במחשבון
+            {v('cta')}
           </a>
         </div>
       </div>

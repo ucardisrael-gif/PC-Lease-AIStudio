@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+section[id] { scroll-margin-top: 5rem; }
+
 @layer base {
   :root {
     /* Blue & Cyan Brand Style (Light Mode) */

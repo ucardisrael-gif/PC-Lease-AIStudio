@@ -1,4 +1,4 @@
-import { LaptopProduct } from '../types';
+import type { LaptopProduct } from '../types';
 
 export const INITIAL_PRODUCTS: LaptopProduct[] = [
   {

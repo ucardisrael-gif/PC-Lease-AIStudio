@@ -1,0 +1,84 @@
+import {randomUUID} from 'node:crypto';
+import {requireTransactionPermission} from './transaction-permissions.mjs';
+const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+const clean=(v,max)=>typeof v==='string'&&v.length<=max&&!/[\u0000-\u001f\u007f]/.test(v);
+const validDate=v=>{if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v)||v.startsWith('0000'))return false;const d=new Date(`${v}T00:00:00Z`);return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===v;};
+function summarizeOrderLines(product,tariff,quantity){const products=product?.quoteProducts,items=tariff?.quote?.items;const record=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);return Array.isArray(products)&&Array.isArray(items)&&products.length===items.length&&items.length&&products.every(record)&&items.every(record)?items.map((item,i)=>({model:products[i]?.model??null,quantity:item?.quantity??null,mode:item?.mode??null,rentalDays:item?.rentalDays??null,termMonths:item?.termMonths??null})):(tariff?.quote?[]:[{model:product?.model??null,quantity,mode:tariff?.mode??null,rentalDays:tariff?.rentalDays??tariff?.price?.rentalDays??null,termMonths:tariff?.price?.termMonths??null}]);}
+export async function getFinancialSummary(db,id){
+ if(!uuid(id))throw Error('invalid_input');
+ const result=await db.query(`SELECT r.id,COALESCE(SUM(e.amount_minor) FILTER (WHERE e.kind='payment' AND reversal.id IS NULL),0)::text AS payments_minor,COALESCE(SUM(e.amount_minor) FILTER (WHERE e.kind='refund' AND reversal.id IS NULL),0)::text AS refunds_minor,COUNT(e.id) FILTER (WHERE e.kind IN ('payment','refund') AND reversal.id IS NULL)::text AS active_count FROM requests r LEFT JOIN financial_entries e ON e.request_id=r.id LEFT JOIN financial_entries reversal ON reversal.reverses_id=e.id WHERE r.id=$1 GROUP BY r.id`,[id]);
+ if(!result.rowCount)throw Error('not_found');return result.rows[0];
+}
+export async function searchFinanceOrders(db,params){
+ const search=(params.get('search')||'').trim(),offset=params.get('offset')||'0',before=params.get('before')||'';
+ if((search.length<2&&!/^\d$/.test(search))||search.length>200||!/^\d{1,7}$/.test(offset)||(before&&(!uuid(before)||Number(offset)!==0)))throw Error('invalid_input');
+ const match="(order_number::text=$1 OR (length($1)>=2 AND strpos(lower(concat_ws(' ',id,contact_json->>'companyName',contact_json->>'contactName',contact_json->>'email',contact_json->>'phone',(SELECT concat_ws(' ',u.email,u.first_name,u.last_name,u.company_name) FROM users u WHERE u.id=requests.customer_user_id),(SELECT concat_ws(' ',o.name,o.registration_number) FROM organizations o WHERE o.id=requests.organization_id))),lower($1))>0))";
+ const c=await db.connect();try{
+  await c.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+  if(before&&!(await c.query(`SELECT 1 FROM requests WHERE id=$2 AND ${match}`,[search,before])).rowCount)throw Error('invalid_input');
+  const rows=(await c.query(`SELECT id,order_number,contact_json->>'companyName' AS company,contact_json->>'contactName' AS contact,created_at,quantity,product_snapshot_json,tariff_snapshot_json FROM requests WHERE ${match} AND ($3::text='' OR (created_at,id)<(SELECT created_at,id FROM requests WHERE id=$3)) ORDER BY created_at DESC,id DESC LIMIT 11 OFFSET $2`,[search,Number(offset),before])).rows;
+  const orders=rows.slice(0,10).map(({product_snapshot_json:product,tariff_snapshot_json:tariff,quantity,...order})=>({...order,lines:summarizeOrderLines(product,tariff,quantity)}));
+  await c.query('COMMIT');return {orders,hasMore:rows.length>10,offset:Number(offset),cursorSupported:true};
+ }catch(error){await c.query('ROLLBACK');throw error;}finally{c.release();}
+}
+export async function listFinancialEntries(db,params){
+ const search=(params.get('search')||'').trim(),offset=params.get('offset')||'0',before=params.get('before')||'',requestId=params.get('requestId')||'',kind=params.get('kind')||'all',from=params.get('from')||'',to=params.get('to')||'',missingDate=params.get('missingDate')||'false';if(!['true','false'].includes(missingDate)||(missingDate==='true'&&(from||to))||search.length>200||!/^\d{1,7}$/.test(offset)||(before&&(!uuid(before)||Number(offset)!==0))||(requestId&&!uuid(requestId))||!['all','payment','refund','reversal'].includes(kind)||(from&&!validDate(from))||(to&&!validDate(to))||(from&&to&&from>to))throw Error('invalid_input');
+ const missingClause=missingDate==='true'?" AND e.kind IN ('payment','refund') AND e.occurred_on IS NULL AND NOT EXISTS(SELECT 1 FROM financial_entries x WHERE x.reverses_id=e.id)":'';
+ const correctionId="COALESCE((SELECT id FROM financial_date_corrections WHERE original_entry_id=e.id),(SELECT id FROM financial_date_corrections WHERE reversal_entry_id=e.id),(SELECT id FROM financial_date_corrections WHERE replacement_entry_id=e.id),'')";
+ const amountCorrectionId="COALESCE((SELECT id FROM financial_amount_corrections WHERE original_entry_id=e.id),(SELECT id FROM financial_amount_corrections WHERE reversal_entry_id=e.id),(SELECT id FROM financial_amount_corrections WHERE replacement_entry_id=e.id),'')";
+ const where="strpos(lower(concat_ws(' ',e.id,e.reverses_id,e.request_id,r.order_number::text,e.reference,e.notes,(SELECT original_entry_id FROM financial_date_corrections WHERE replacement_entry_id=e.id),"+correctionId+",(SELECT id FROM financial_date_corrections WHERE replacement_entry_id=e.id),(SELECT original_entry_id FROM financial_amount_corrections WHERE replacement_entry_id=e.id),"+amountCorrectionId+",(SELECT id FROM financial_amount_corrections WHERE replacement_entry_id=e.id),r.contact_json->>'companyName',r.contact_json->>'contactName',(SELECT concat_ws(' ',u.email,u.first_name,u.last_name,u.company_name) FROM users u WHERE u.id=r.customer_user_id),(SELECT concat_ws(' ',o.name,o.registration_number) FROM organizations o WHERE o.id=r.organization_id))),lower($1))>0 AND ($3::text='' OR e.request_id=$3) AND ($4::text='all' OR e.kind=$4) AND ($5::text='' OR e.occurred_on>=NULLIF($5,'')::date) AND ($6::text='' OR e.occurred_on<=NULLIF($6,'')::date)"+missingClause;
+ const c=await db.connect();try{await c.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+ if(before&&!(await c.query(`SELECT 1 FROM financial_entries e JOIN requests r ON r.id=e.request_id WHERE e.id=$2 AND ${where}`,[search,before,requestId,kind,from,to])).rowCount)throw Error('invalid_input');
+ const result=await c.query(`SELECT e.*,to_char(e.occurred_on,'YYYY-MM-DD') AS occurred_on,r.order_number,u.email AS actor_email, r.contact_json->>'companyName' AS company,r.quantity AS order_quantity,r.product_snapshot_json AS order_products,r.tariff_snapshot_json AS order_terms,EXISTS(SELECT 1 FROM financial_entries x WHERE x.reverses_id=e.id) AS reversed,orig.kind AS original_kind,${correctionId} AS correction_operation_id,(SELECT id FROM financial_date_corrections WHERE replacement_entry_id=e.id) AS previous_correction_operation_id,(SELECT original_entry_id FROM financial_date_corrections WHERE replacement_entry_id=e.id) AS correction_original_id,${amountCorrectionId} AS amount_correction_operation_id,(SELECT id FROM financial_amount_corrections WHERE replacement_entry_id=e.id) AS previous_amount_correction_operation_id,(SELECT original_entry_id FROM financial_amount_corrections WHERE replacement_entry_id=e.id) AS amount_correction_original_id FROM financial_entries e JOIN users u ON u.id=e.created_by JOIN requests r ON r.id=e.request_id LEFT JOIN financial_entries orig ON orig.id=e.reverses_id WHERE ${where} AND ($7::text='' OR (e.created_at,e.id)<(SELECT created_at,id FROM financial_entries WHERE id=$7)) ORDER BY e.created_at DESC,e.id DESC LIMIT 26 OFFSET $2`,[search,Number(offset),requestId,kind,from,to,before]);
+ const aggregate=await c.query(`SELECT count(*)::integer AS total,COALESCE(sum(e.amount_minor) FILTER (WHERE e.kind='payment' AND NOT EXISTS(SELECT 1 FROM financial_entries x WHERE x.reverses_id=e.id)),0)::text AS payments_minor,COALESCE(sum(e.amount_minor) FILTER (WHERE e.kind='refund' AND NOT EXISTS(SELECT 1 FROM financial_entries x WHERE x.reverses_id=e.id)),0)::text AS refunds_minor FROM financial_entries e JOIN requests r ON r.id=e.request_id WHERE ${where.replaceAll('$3','$2').replaceAll('$4','$3').replaceAll('$5','$4').replaceAll('$6','$5')}`,[search,requestId,kind,from,to]);await c.query('COMMIT');return {entries:result.rows.slice(0,25).map(({order_products,order_terms,order_quantity,...entry})=>({...entry,order_lines:summarizeOrderLines(order_products,order_terms,order_quantity)})),total:aggregate.rows[0].total,summary:{paymentsMinor:aggregate.rows[0].payments_minor,refundsMinor:aggregate.rows[0].refunds_minor},offset:Number(offset),hasMore:result.rows.length>25,dateCorrectionSupported:true,datedCorrectionSupported:true,amountCorrectionSupported:true};
+ }catch(error){await c.query('ROLLBACK');throw error;}finally{c.release();}
+}
+export async function createFinancialEntry(db,actor,input){
+ if(!input||!uuid(input.id)||!clean(input.notes,1000)||!clean(input.reference,200)||!['payment','refund','reversal'].includes(input.kind))throw Error('invalid_input');
+ const occurredOn=input.occurredOn==null||input.occurredOn===''?null:input.occurredOn;
+ if((occurredOn!==null&&!validDate(occurredOn))||(input.kind==='reversal'&&occurredOn!==null))throw Error('invalid_input');
+ if(input.kind==='reversal'?!uuid(input.reversesId):(!uuid(input.requestId)||!Number.isSafeInteger(input.amountMinor)||input.amountMinor<1||input.amountMinor>1000000000))throw Error('invalid_input');
+ const c=await db.connect();try{await c.query('BEGIN');await requireTransactionPermission(c,actor,'finance');
+  await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[input.id]);
+  const existing=(await c.query("SELECT *,to_char(occurred_on,'YYYY-MM-DD') AS occurred_on FROM financial_entries WHERE id=$1",[input.id])).rows[0];
+  if(existing){
+   const same=existing.created_by===actor&&existing.kind===input.kind&&existing.reference===input.reference.trim()&&existing.notes===input.notes.trim()&&existing.occurred_on===occurredOn&&(input.kind==='reversal'?existing.reverses_id===input.reversesId:existing.request_id===input.requestId&&existing.amount_minor===input.amountMinor);
+   if(!same)throw Error('duplicate_entry');
+   await c.query('COMMIT');return existing;
+  }
+  let requestId=input.requestId,amount=input.amountMinor;
+  if(input.kind==='reversal'){const old=(await c.query('SELECT * FROM financial_entries WHERE id=$1 FOR UPDATE',[input.reversesId])).rows[0];if(!old)throw Error('not_found');if(old.kind==='reversal')throw Error('invalid_input');if((await c.query('SELECT 1 FROM financial_entries WHERE reverses_id=$1',[old.id])).rowCount)throw Error('already_reversed');requestId=old.request_id;amount=old.amount_minor;}
+  if(!(await c.query('SELECT 1 FROM requests WHERE id=$1 FOR SHARE',[requestId])).rowCount)throw Error('request_not_found');
+  const row=(await c.query("INSERT INTO financial_entries(id,request_id,kind,amount_minor,reference,notes,reverses_id,created_by,occurred_on) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *,to_char(occurred_on,'YYYY-MM-DD') AS occurred_on",[input.id,requestId,input.kind,amount,input.reference.trim(),input.notes.trim(),input.kind==='reversal'?input.reversesId:null,actor,occurredOn])).rows[0];await c.query('COMMIT');return row;
+ }catch(error){await c.query('ROLLBACK');if(error.code==='23505')throw Error('duplicate_entry');throw error;}finally{c.release();}
+}
+
+export async function correctFinancialDate(db,actor,input){
+ if(!input||!uuid(input.operationId)||!uuid(input.entryId)||!validDate(input.occurredOn))throw Error('invalid_input');
+ const c=await db.connect();try{await c.query('BEGIN');await requireTransactionPermission(c,actor,'finance');await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[input.operationId]);
+  const prior=(await c.query("SELECT id,original_entry_id,reversal_entry_id,replacement_entry_id,actor_user_id,to_char(occurred_on,'YYYY-MM-DD') AS occurred_on FROM financial_date_corrections WHERE id=$1",[input.operationId])).rows[0];
+  if(prior){if(prior.actor_user_id!==actor||prior.original_entry_id!==input.entryId||prior.occurred_on!==input.occurredOn)throw Error('operation_conflict');await c.query('COMMIT');return prior;}
+  if((await c.query('SELECT 1 FROM financial_amount_corrections WHERE id=$1',[input.operationId])).rowCount)throw Error('operation_conflict');
+  const original=(await c.query("SELECT *,to_char(occurred_on,'YYYY-MM-DD') AS occurred_on FROM financial_entries WHERE id=$1 FOR UPDATE",[input.entryId])).rows[0];if(!original)throw Error('not_found');if(original.kind==='reversal'||original.occurred_on===input.occurredOn)throw Error('invalid_input');
+  if((await c.query('SELECT 1 FROM financial_entries WHERE reverses_id=$1',[input.entryId])).rowCount)throw Error('already_reversed');
+  const reversal=randomUUID(),replacement=randomUUID();
+  await c.query("INSERT INTO financial_entries(id,request_id,kind,amount_minor,reference,notes,reverses_id,created_by) VALUES($1,$2,'reversal',$3,'','Date correction',$4,$5)",[reversal,original.request_id,original.amount_minor,original.id,actor]);
+  await c.query('INSERT INTO financial_entries(id,request_id,kind,amount_minor,reference,notes,created_by,occurred_on) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[replacement,original.request_id,original.kind,original.amount_minor,original.reference,original.notes,actor,input.occurredOn]);
+  const row=(await c.query("INSERT INTO financial_date_corrections(id,original_entry_id,reversal_entry_id,replacement_entry_id,occurred_on,actor_user_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,original_entry_id,reversal_entry_id,replacement_entry_id,actor_user_id,to_char(occurred_on,'YYYY-MM-DD') AS occurred_on",[input.operationId,original.id,reversal,replacement,input.occurredOn,actor])).rows[0];await c.query('COMMIT');return row;
+ }catch(error){await c.query('ROLLBACK');if(error.code==='23505')throw Error('already_reversed');throw error;}finally{c.release();}
+}
+
+export async function correctFinancialAmount(db,actor,input){
+ if(!input||!uuid(input.operationId)||!uuid(input.entryId)||!Number.isSafeInteger(input.amountMinor)||input.amountMinor<1||input.amountMinor>1000000000)throw Error('invalid_input');
+ const c=await db.connect();try{await c.query('BEGIN');await requireTransactionPermission(c,actor,'finance');await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[input.operationId]);
+  const prior=(await c.query('SELECT id,original_entry_id,reversal_entry_id,replacement_entry_id,amount_minor,actor_user_id FROM financial_amount_corrections WHERE id=$1',[input.operationId])).rows[0];
+  if(prior){if(prior.actor_user_id!==actor||prior.original_entry_id!==input.entryId||prior.amount_minor!==input.amountMinor)throw Error('operation_conflict');await c.query('COMMIT');return prior;}
+  if((await c.query('SELECT 1 FROM financial_date_corrections WHERE id=$1',[input.operationId])).rowCount)throw Error('operation_conflict');
+  const original=(await c.query("SELECT *,to_char(occurred_on,'YYYY-MM-DD') AS occurred_on FROM financial_entries WHERE id=$1 FOR UPDATE",[input.entryId])).rows[0];if(!original)throw Error('not_found');if(original.kind==='reversal'||original.amount_minor===input.amountMinor)throw Error('invalid_input');
+  if((await c.query('SELECT 1 FROM financial_entries WHERE reverses_id=$1',[input.entryId])).rowCount)throw Error('already_reversed');
+  const reversal=randomUUID(),replacement=randomUUID();
+  await c.query("INSERT INTO financial_entries(id,request_id,kind,amount_minor,reference,notes,reverses_id,created_by) VALUES($1,$2,'reversal',$3,'','Amount correction',$4,$5)",[reversal,original.request_id,original.amount_minor,original.id,actor]);
+  await c.query('INSERT INTO financial_entries(id,request_id,kind,amount_minor,reference,notes,created_by,occurred_on) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[replacement,original.request_id,original.kind,input.amountMinor,original.reference,original.notes,actor,original.occurred_on]);
+  const row=(await c.query('INSERT INTO financial_amount_corrections(id,original_entry_id,reversal_entry_id,replacement_entry_id,amount_minor,actor_user_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,original_entry_id,reversal_entry_id,replacement_entry_id,amount_minor,actor_user_id',[input.operationId,original.id,reversal,replacement,input.amountMinor,actor])).rows[0];await c.query('COMMIT');return row;
+ }catch(error){await c.query('ROLLBACK');if(error.code==='23505')throw Error('already_reversed');throw error;}finally{c.release();}
+}

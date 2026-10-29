@@ -1,7 +1,9 @@
+import { hasRentalRates } from '../data/pricing';
 import React, { useState, useMemo } from 'react';
 import { Search, RotateCcw, Cpu, HardDrive, Monitor, ArrowUpRight, Laptop } from 'lucide-react';
 import { Language, LaptopProduct } from '../types';
 import { TRANSLATIONS } from '../data/translations';
+import { ProductImage, specsConfirmed } from './ProductImage';
 
 interface CatalogSectionProps {
   lang: Language;
@@ -40,7 +42,7 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
 
       // CPU filter
       if (selectedCpu !== 'All') {
-        if (!p.cpu.family.toLowerCase().includes(selectedCpu.toLowerCase().replace('core ', ''))) {
+        if (!specsConfirmed(p) || !p.cpu.family.toLowerCase().includes(selectedCpu.toLowerCase().replace('core ', ''))) {
           return false;
         }
       }
@@ -50,8 +52,8 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
         const query = searchQuery.toLowerCase().trim();
         const titleMatch = p.title[lang].toLowerCase().includes(query);
         const modelMatch = p.model.toLowerCase().includes(query);
-        const cpuMatch = p.cpu.family.toLowerCase().includes(query);
-        const storageMatch = String(p.storage.capacityGB).includes(query);
+        const cpuMatch = specsConfirmed(p) && p.cpu.family.toLowerCase().includes(query);
+        const storageMatch = specsConfirmed(p) && String(p.storage.capacityGB).includes(query);
         if (!titleMatch && !modelMatch && !cpuMatch && !storageMatch) {
           return false;
         }
@@ -77,12 +79,12 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
             {t.catalog.kicker}
           </span>
           <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-[var(--text-primary)] mt-2">
-            {t.catalog.title}
+            {lang === 'he' ? 'מחשבים לעסקים' : 'Business Computers'}
           </h2>
           <p className="text-sm sm:text-base text-[var(--text-secondary)] mt-3">
             {lang === 'he'
-              ? 'כל המחשבים הניידים ותחנות העבודה השולחניות לעסקים — נבדקו בקפידה במעבדה עם רישיון Windows 11 Pro'
-              : 'All enterprise business laptops and compact desktop workstations — thoroughly bench-tested with Windows 11 Pro'}
+              ? 'מחשבים ניידים ונייחים לעסקים. המפרט והזמינות יאושרו בהצעה.'
+              : 'Business laptops and desktop computers. Specifications and availability are confirmed in the quote.'}
           </p>
         </div>
 
@@ -110,7 +112,7 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
               >
                 <option value="All">{lang === 'he' ? 'כל הסוגים (ניידים + דסקטופ)' : 'All Hardware Types'}</option>
                 <option value="laptop">{lang === 'he' ? 'מחשבים ניידים בלבד' : 'Laptops Only'}</option>
-                <option value="desktop">{lang === 'he' ? 'תחנות עבודה דסקטופ' : 'Desktop Mini PCs'}</option>
+                <option value="desktop">{lang === 'he' ? 'מחשבים נייחים' : 'Desktop Computers'}</option>
               </select>
             </div>
 
@@ -161,8 +163,8 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
             </span>
             <span className="font-medium text-sky-600 dark:text-sky-400">
               {lang === 'he'
-                ? 'ליסינג 36 חודש: ₪99 | השכרה (מיום עד שנה): החל מ-₪35/יום · ₪149/חודש | רכישה: ₪2,000'
-                : '36-Mo Lease: ₪99 | Rental (1d–1yr): from ₪35/day · ₪149/mo | Purchase: ₪2,000'}
+                ? 'מחירים לפי דגם'
+                : 'Prices vary by model · Excl. VAT'}
             </span>
           </div>
         </div>
@@ -191,7 +193,7 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
                   {/* Card Header & Kicker */}
                   <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mb-3">
                     <span className="font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
-                      {product.manufacturer} · {product.category === 'desktop' ? 'Desktop Workstation' : 'Laptop'}
+                      {product.manufacturer} · {product.category === 'desktop' ? (lang === 'he' ? 'מחשב נייח' : 'Desktop') : (lang === 'he' ? 'מחשב נייד' : 'Laptop')}
                     </span>
                     <span className="text-[11px] bg-[var(--badge-bg)] px-2 py-0.5 rounded font-medium">
                       {t.catalog.refurbishedBadge}
@@ -199,57 +201,51 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
                   </div>
 
                   {/* Title */}
-                  <h3 className="text-lg font-bold text-[var(--text-primary)] font-mono leading-tight mb-4">
+                  <h3 className="text-lg font-bold text-[var(--text-primary)] leading-tight mb-4">
                     <bdi>{product.model}</bdi>
                   </h3>
 
                   {/* Image Presentation with Smooth Scale & Drop-Shadow Shift */}
                   <div className="relative aspect-[16/10] my-2 p-3 flex items-center justify-center overflow-hidden rounded-lg bg-[var(--bg-page)]/60">
-                    <img
-                      src={product.imagePath}
-                      alt={product.title[lang]}
-                      className="w-full h-full object-contain filter drop-shadow group-hover:scale-110 group-hover:drop-shadow-[0_12px_24px_rgba(2,132,199,0.25)] transition-all duration-500 ease-out"
-                      referrerPolicy="no-referrer"
-                      loading="lazy"
-                    />
+                    <ProductImage product={product} lang={lang} />
                   </div>
 
                   {/* Key Specifications Pill List */}
-                  <div className="grid grid-cols-3 gap-1.5 py-3 border-y border-[var(--border-subtle)] text-center text-xs">
+                  {specsConfirmed(product) ? <div className="grid grid-cols-3 gap-1.5 py-3 border-y border-[var(--border-subtle)] text-center text-xs">
                     <div className="p-1.5 rounded bg-[var(--badge-bg)]/50">
-                      <div className="text-[10px] text-[var(--text-secondary)]">מעבד</div>
+                      <div className="text-[10px] text-[var(--text-secondary)]">{lang === 'he' ? 'מעבד' : 'Processor'}</div>
                       <div className="font-semibold text-[var(--text-primary)] font-mono text-[11px]">
-                        <bdi>{product.cpu.family}</bdi>
+                        <bdi>{product.cpu.family||'—'}</bdi>
                       </div>
                     </div>
                     <div className="p-1.5 rounded bg-[var(--badge-bg)]/50">
-                      <div className="text-[10px] text-[var(--text-secondary)]">זיכרון</div>
+                      <div className="text-[10px] text-[var(--text-secondary)]">{lang === 'he' ? 'זיכרון' : 'Memory'}</div>
                       <div className="font-semibold text-[var(--text-primary)] font-mono text-[11px] tabular-nums">
-                        {product.ramGB}GB
+                        {product.ramGB ? `${product.ramGB}GB` : '—'}
                       </div>
                     </div>
                     <div className="p-1.5 rounded bg-[var(--badge-bg)]/50">
-                      <div className="text-[10px] text-[var(--text-secondary)]">אחסון</div>
+                      <div className="text-[10px] text-[var(--text-secondary)]">{lang === 'he' ? 'אחסון' : 'Storage'}</div>
                       <div className="font-semibold text-[var(--text-primary)] font-mono text-[11px] tabular-nums">
-                        {product.storage.capacityGB}GB
+                        {product.storage.capacityGB ? `${product.storage.capacityGB}GB` : '—'}
                       </div>
                     </div>
-                  </div>
+                  </div> : <p className="py-3 text-sm text-[var(--text-secondary)]">{lang === 'he' ? 'המפרט יימסר לאחר אישור.' : 'Specifications will be provided after confirmation.'}</p>}
                 </div>
 
                 {/* Card Footer: Pricing & CTAs */}
                 <div className="pt-4 space-y-3">
                   <div className="grid grid-cols-2 gap-2 text-start">
                     <div className="p-2 rounded bg-[var(--bg-page)] border border-[var(--border-subtle)]">
-                      <div className="text-[10px] text-[var(--text-secondary)]">ליסינג 36 חודש</div>
+                      <div className="text-[10px] text-[var(--text-secondary)]">{product.leaseTermMonths === 36 ? (lang === 'he' ? 'ליסינג 36 חודשים' : 'Lease 36 months') : (lang === 'he' ? 'ליסינג לא זמין' : 'Lease unavailable')}</div>
                       <div className="text-sm font-black text-sky-600 dark:text-sky-400 font-mono tabular-nums">
-                        ₪99 <span className="text-[10px] font-normal">/ חודש</span>
+                        {product.leaseTermMonths === 36 && (Number.isFinite(product.leasePriceMonthly) ? <>₪{product.leasePriceMonthly} <span className="text-[10px] font-normal">/ {lang === 'he' ? 'חודש' : 'month'}</span></> : (lang === 'he' ? 'מחיר לפי בקשה' : 'Price on request'))}
                       </div>
                     </div>
                     <div className="p-2 rounded bg-[var(--bg-page)] border border-[var(--border-subtle)]">
-                      <div className="text-[10px] text-[var(--text-secondary)]">השכרה (מיום עד שנה)</div>
+                      <div className="text-[10px] text-[var(--text-secondary)]">{lang === 'he' ? 'השכרה (מיום עד שנה)' : 'Rental (one day to one year)'}</div>
                       <div className="text-sm font-black text-sky-600 dark:text-sky-400 font-mono tabular-nums">
-                        ₪35 <span className="text-[10px] font-normal">/ יום (₪149/ח׳)</span>
+                        {hasRentalRates(product) ? <>₪{product.rentalRates.dailyShort} <span className="text-[10px] font-normal">/ {lang === 'he' ? 'יום' : 'day'} · ₪{product.rentalRates.monthly}/30 {lang === 'he' ? 'יום' : 'days'}</span></> : (lang === 'he' ? 'מחיר לפי בקשה' : 'Price on request')}
                       </div>
                     </div>
                   </div>
@@ -269,7 +265,7 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
                       onClick={() => onSelectForCalculator(product)}
                       className="flex-1 px-3 py-2 text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 rounded transition-colors shadow-sm cursor-pointer"
                     >
-                      {t.catalog.orderBtn}
+                      {lang === 'he' ? 'חישוב עלות' : 'Calculate cost'}
                     </button>
                   </div>
                 </div>

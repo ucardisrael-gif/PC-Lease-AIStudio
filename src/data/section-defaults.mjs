@@ -1,0 +1,100 @@
+import { storyFaqDefaults } from './story-faq-defaults.mjs';
+
+export const sectionDefaults = {
+  layout: { order: ['hero', 'trust', 'featured', 'calculator', 'story', 'workspace', 'faq'] },
+  ...storyFaqDefaults,
+  calculator: {
+    visible: true,
+    kickerHe: 'מחשבון עלויות מדויק', kickerEn: 'FINANCIAL ESTIMATOR',
+    titleHe: 'חשבו את העלות החודשית לעסק שלכם', titleEn: 'Calculate Monthly Costs for Your Team',
+    subtitleHe: 'בחרו דגם, כמות ומסלול — קבלו אומדן מיידי.', subtitleEn: 'Choose a model, quantity and acquisition path for an instant estimate.',
+    deviceLabelHe: 'בחר דגם מחשב', deviceLabelEn: 'Select Laptop Model',
+    modeLabelHe: 'סוג המסלול', modeLabelEn: 'Acquisition Model',
+    leaseModeHe: 'ליסינג ל-36 חודשים', leaseModeEn: 'Lease for 36 months',
+    leaseUnavailableHe: 'ליסינג לא זמין', leaseUnavailableEn: 'Lease unavailable',
+    priceOnRequestHe: 'מחיר לפי בקשה', priceOnRequestEn: 'Price on request',
+    shortRentalModeHe: 'השכרה גמישה (מיום עד שנה)', shortRentalModeEn: 'Flexible Rental (1 Day to 1 Year)',
+    purchaseModeHe: 'רכישה מלאה', purchaseModeEn: 'Outright Purchase',
+    rentalTermLabelHe: 'תקופת השכרה מבוקשת (מיום 1 עד שנה)', rentalTermLabelEn: 'Rental Duration (1 Day up to 1 Year)',
+    quantityLabelHe: 'כמות מחשבים (1 עד 1,000)', quantityLabelEn: 'Quantity (1 to 1,000 units)',
+    monthlyTotalLabelHe: 'סה״כ תשלום חודשי', monthlyTotalLabelEn: 'Total Monthly Payment',
+    purchaseTotalLabelHe: 'סה״כ עלות רכישה', purchaseTotalLabelEn: 'Total Outright Cost',
+    displayedCostHe: 'העלות המוצגת', displayedCostEn: 'Displayed cost',
+    continueCtaHe: 'המשך להזמנה או להצעת מחיר', continueCtaEn: 'Continue to order or estimate',
+    summaryHe: 'סיכום עלויות משוער', summaryEn: 'Estimated cost summary',
+    quickSelectionHe: 'בחירה מהירה:', quickSelectionEn: 'Quick selection:',
+    preset1He: 'יום 1', preset1En: '1 Day',
+    preset3He: '3 ימים', preset3En: '3 Days',
+    preset7He: 'שבוע (7 ימים)', preset7En: '1 Week (7d)',
+    preset14He: 'שבועיים (14 ימים)', preset14En: '2 Weeks (14d)',
+    preset30He: 'חודש (30 ימים)', preset30En: '1 Month (30d)',
+    preset90He: '3 חודשים', preset90En: '3 Months',
+    preset180He: '6 חודשים', preset180En: '6 Months',
+    preset365He: 'שנה (365 יום)', preset365En: '1 Year (365d)',
+    purchaseNoteHe: 'תשלום חד-פעמי לרכישה', purchaseNoteEn: 'One-time purchase payment',
+    rentalTotalHe: 'סה״כ להשכרה לתקופה המבוקשת', rentalTotalEn: 'Total Rental Period Cost',
+    rentalPeriodHe: 'משך ההשכרה:', rentalPeriodEn: 'Rental period:',
+    unitCostHe: 'עלות ליחידה בודדת:', unitCostEn: 'Cost per unit:',
+    averageRateHe: 'תעריף יומי ממוצע:', averageRateEn: 'Average daily rate:',
+    unitRateHe: 'תעריף ליחידה:', unitRateEn: 'Rate per unit:',
+    agreementTermHe: 'תקופת הסכם:', agreementTermEn: 'Agreement term:',
+    disclaimerHe: 'מסלול השכרה ניתן לבחירה מיום אחד ועד שנה (365 יום). זמינות ותנאי אספקה כפופים לאישור.', disclaimerEn: 'Rentals are available from 1 day up to 1 year (365 days). Availability and delivery terms require confirmation.'
+  },
+  navigation: {
+    visible: true,
+    modelsHe: 'דגמים נבחרים', modelsEn: 'Featured Models', calculatorHe: 'מחשבון עלויות', calculatorEn: 'Cost Calculator',
+    storyHe: 'איך זה עובד', storyEn: 'How It Works', catalogHe: 'קטלוג מלא', catalogEn: 'Full Catalogue',
+    faqHe: 'שאלות נפוצות', faqEn: 'FAQ', aboutHe: 'אודות', aboutEn: 'About', contactHe: 'צור קשר', contactEn: 'Contact',
+    quoteHe: 'הצעת מחיר', quoteEn: 'Get a quote'
+  },
+  footer: {
+    visible: true,
+    showContact: false,
+    taglineHe: 'PC-LEASE — מחשבים ניידים עסקיים בליסינג, השכרה ורכישה.', taglineEn: 'PC-LEASE — Enterprise business laptop leasing, rental & purchase.',
+    noteHe: 'תנאי ההתקשרות הסופיים נקבעים בהצעת המחיר.', noteEn: 'Final terms, delivery and availability confirmed in written quote.',
+    copyrightHe: '© 2026 PC-LEASE. כל הזכויות שמורות.', copyrightEn: '© 2026 PC-LEASE. All rights reserved.',
+    topHe: 'חזרה לראש העמוד', topEn: 'Back to top'
+  },
+  about: {
+    visible: true,
+    imageUrl: '/brand/premium/workspace.webp',
+    imageAltHe: '', imageAltEn: '',
+    kickerHe: 'PC-LEASE', kickerEn: 'PC-LEASE',
+    titleHe: 'מחשבים לעסק, בדרך שמתאימה לכם', titleEn: 'Business computers, on your terms',
+    bodyHe: 'PC-LEASE מציעה מחשבים עסקיים מחודשים בליסינג, בהשכרה קצרת טווח וברכישה. אנו מסייעים בבחירת ציוד המתאים לצורכי העסק.',
+    bodyEn: 'PC-LEASE offers refurbished business computers for leasing, short-term rental and purchase. We help businesses choose equipment suited to their needs.',
+    detailHe: 'בחרו מחשב ותוכנית, ובקשו הצעה או צרו איתנו קשר לקבלת מידע נוסף.', detailEn: 'Choose a computer and a plan, request an estimate, or contact us for more information.',
+    ctaHe: 'צרו קשר', ctaEn: 'Contact us'
+  },
+  contact: {
+    visible: true, recipientEmail: 'alfagpt4@gmail.com', publicEmail: 'alfagpt4@gmail.com', publicPhone: '', publicWhatsApp: '',
+    titleHe: 'צרו איתנו קשר', titleEn: 'Get in touch',
+    bodyHe: 'השאירו פרטים והודעה ונחזור אליכם.', bodyEn: 'Leave your details and a message and we will get back to you.',
+    nameHe: 'שם מלא', nameEn: 'Name', emailHe: 'דוא״ל', emailEn: 'Email',
+    phoneHe: 'טלפון', phoneEn: 'Phone', companyHe: 'חברה (לא חובה)', companyEn: 'Company (optional)', quantityHe: 'מספר מחשבים משוער (לא חובה)', quantityEn: 'Approximate number of computers (optional)', productCtaHe: 'שאלה על הדגם', productCtaEn: 'Ask about this model', messageHe: 'הודעה', messageEn: 'Message',
+    submitHe: 'שליחת הודעה', submitEn: 'Send message',
+    successHe: 'ההודעה נשלחה בהצלחה.', successEn: 'Your message has been sent.',
+    savedHe: 'הפנייה נשמרה, אך הודעת הדוא״ל טרם אושרה. אין צורך לשלוח שוב.', savedEn: 'Your message was saved, but the email notification has not been confirmed. There is no need to send it again.',
+    errorHe: 'לא ניתן לשלוח את ההודעה. נסו שוב מאוחר יותר.', errorEn: 'Your message could not be sent. Please try again later.'
+  },
+  workspace: {
+    visible: true, imageUrl: '/brand/premium/workspace.webp',
+    kickerHe: 'סביבת עבודה ארכיטקטונית', kickerEn: 'MODERN WORKSPACE MOBILITY',
+    titleHe: 'מחשוב אמין בלי לפגוע בתזרים המזומנים של החברה', titleEn: 'Reliable Hardware Without Compromising Company Cash Flow',
+    bodyHe: 'צוותים עסקיים זקוקים למחשבים עמידים, מאובטחים ומהירים. מודל הליסינג וההשכרה של PC-LEASE מעניק לחברות טכנולוגיה, משרדי עורכי דין ועסקים צומחים שקט נפשי מלא, ללא השקעת הון גדולה מראש.',
+    bodyEn: 'Fast-moving teams need dependable, secure and durable machines. PC-LEASE gives tech companies, law practices and growing businesses full operational peace of mind without heavy upfront capital expenditures.',
+    imageLabelHe: 'סביבת עבודה עסקית', imageLabelEn: 'Business workspace',
+    item1TitleHe: 'ציוד אחיד', item1TitleEn: 'Consistent equipment', item1BodyHe: 'סטנדרט לחברה', item1BodyEn: 'A company standard',
+    item2TitleHe: 'שימור תזרים', item2TitleEn: 'Preserve cash flow', item2BodyHe: 'ללא השקעת הון', item2BodyEn: 'No upfront capital expense',
+    item3TitleHe: 'החלפה מהירה', item3TitleEn: 'Fast replacement', item3BodyHe: 'מלאי גיבוי', item3BodyEn: 'Backup inventory'
+  },
+  featured: {
+    visible: true,
+    kickerHe: 'נבחרת הדגמים', kickerEn: 'CORE FLEET',
+    titleHe: 'בחרו את המחשב המותאם לעסק שלכם', titleEn: 'Select the Computer Tailored to Your Business',
+    bodyHe: 'בחרו מתוך נבחרת המחשבים הניידים והנייחים לעסק', bodyEn: 'Choose from our business laptops and desktop computers',
+    allHe: 'כל הציוד', allEn: 'All Hardware', laptopHe: 'מחשבים ניידים', laptopEn: 'Laptops', desktopHe: 'מחשבים נייחים', desktopEn: 'Desktop Computers',
+    calculateHe: 'חשב עלויות לדגם זה', calculateEn: 'Calculate costs for this model', detailsHe: 'להזמנה', detailsEn: 'Order',
+    statusHe: 'זמינות ומצב מאושרים בהצעת המחיר הרשמית', statusEn: 'Availability and condition are confirmed in the official quote'
+  }
+};

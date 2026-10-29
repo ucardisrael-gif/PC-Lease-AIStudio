@@ -22,7 +22,7 @@ export const TRANSLATIONS = {
       subtitle: 'מחשבים ניידים עסקיים מחודשים מדרג פרימיום (Dell, HP, Lenovo). מסלולי ליסינג ארוך טווח, השכרה גמישה עד שנה ורכישה ישירה.',
       ctaPrimary: 'לבחירת מחשב ומסלול',
       ctaSecondary: 'חישוב עלות מיידי',
-      tariffPill: 'ליסינג 36 חודש: ₪99/חודש · השכרה עד שנה: ₪149/חודש · רכישה: ₪2,000 · לפני מע״מ',
+      tariffPill: 'ליסינג 36 חודש: ₪99/חודש · השכרה עד שנה: ₪149/חודש · רכישה: ₪2,000',
       refurbishedNote: 'ציוד מחודש דרג עסקי פרימיום · מלאי מותנה בבדיקה',
       pauseMotion: 'עצור אפקטים',
       playMotion: 'הפעל אפקטים',
@@ -39,11 +39,11 @@ export const TRANSLATIONS = {
       touch: 'מסך מגע Touch',
       nonTouch: 'מסך מט Anti-Glare',
       leaseRate: '₪99 / חודש',
-      leaseSub: 'ליסינג 36 חודשים · לפני מע״מ',
+      leaseSub: 'ליסינג 36 חודשים',
       shortRentalRate: '₪149 / חודש',
-      shortRentalSub: 'השכרה עד שנה · לפני מע״מ',
+      shortRentalSub: 'השכרה עד שנה',
       buyRate: '₪2,000',
-      buySub: 'רכישה ישירה · לפני מע״מ',
+      buySub: 'רכישה ישירה',
       calculateCta: 'חשב עלויות לדגם זה',
       viewDetails: 'מפרט מלא והזמנה',
       statusNote: 'זמינות ומצב מאושרים בהצעת המחיר הרשמית',
@@ -57,7 +57,7 @@ export const TRANSLATIONS = {
     calculator: {
       kicker: 'מחשבון עלויות מדויק',
       title: 'חשבו את העלות החודשית לעסק שלכם',
-      subtitle: 'בחרו דגם, כמות ומסלול — קבלו אומדן מיידי לפני מע״מ.',
+      subtitle: 'בחרו דגם, כמות ומסלול — קבלו אומדן מיידי.',
       deviceLabel: 'בחר דגם מחשב',
       modeLabel: 'סוג המסלול',
       leaseMode: 'ליסינג ארוך טווח (36 חודש)',
@@ -75,9 +75,9 @@ export const TRANSLATIONS = {
       monthlyTotalLabel: 'סה״כ תשלום חודשי',
       purchaseTotalLabel: 'סה״כ עלות רכישה',
       perUnitNote: 'עבור {qty} מכשירים מדגם {model}',
-      beforeVat: 'הסכומים אינם כוללים מע״מ כחוק',
+      beforeVat: 'העלות המוצגת',
       leaseTermsNote: 'תקופת הליסינג הינה 36 חודשים. השכרה קצרת טווח מוגבלת לעד 12 חודשים בהתאם לזמינות המלאי.',
-      continueCta: 'המשך להפקת הצעת מחיר רשמית',
+      continueCta: 'המשך להזמנה או להצעת מחיר',
       validationError: 'נא להזין מספר שלם בין 1 ל-1,000.',
     },
     story: {
@@ -94,7 +94,7 @@ export const TRANSLATIONS = {
         {
           num: '02',
           title: 'הגדרת מסלול (ליסינג, השכרה או רכישה)',
-          desc: 'בוחרים בין ליסינג ל-36 חודשים (₪99/חודש), השכרה גמישה עד שנה (₪149/חודש) או רכישה (₪2,000).',
+          desc: 'בוחרים בין ליסינג, השכרה קצרת טווח או רכישה. המחיר מוצג לפי הדגם הנבחר.',
           badge: 'גמישות מלאה',
         },
         {
@@ -134,11 +134,11 @@ export const TRANSLATIONS = {
       items: [
         {
           q: 'מה ההבדל בין ליסינג ל-36 חודש לבין השכרה עד שנה?',
-          a: 'מסלול הליסינג הינו מסלול ארוך טווח המעניק את התעריף המשתלם ביותר (₪99 לחודש לפני מע״מ). מסלול ההשכרה הגמיש (₪149 לחודש) מיועד לפרויקטים זמניים, עובדים עונתיים או צוותים שאינם מעוניינים בהתחייבות ארוכה.',
+          a: 'מסלול הליסינג הוא לתקופה ארוכה; השכרה קצרת טווח מתאימה לצרכים זמניים. התעריפים והתקופה מוצגים לפי הדגם.',
         },
         {
           q: 'מה כולל מסלול הליסינג של PC-LEASE?',
-          a: 'מחשב נייד עסקי מחודש שנבדק במעבדה, תשלום חודשי קבוע ל-36 חודשים (₪99 לפני מע״מ), ומסמך הצעת מחיר מסודר הכולל את כל פרטי ההתקשרות. הזמינות נבדקת ומאושרת לפני סגירה.',
+          a: 'מחשב עסקי מחודש ותשלום חודשי לפי הדגם והתנאים שיאושרו. הזמינות נבדקת לפני סגירה.',
         },
         {
           q: 'האם המחשבים חדשים או מחודשים?',
@@ -146,7 +146,7 @@ export const TRANSLATIONS = {
         },
         {
           q: 'כיצד נקבע המחיר?',
-          a: 'המחירים בקטלוג קבועים ומוגדרים: ₪99 לחודש בליסינג ל-36 חודשים, ₪149 לחודש בהשכרה עד שנה, או ₪2,000 לרכישה ישירה, הכל לפני מע״מ.',
+          a: 'המחירים נקבעים לפי דגם ומסלול ומוצגים.',
         },
         {
           q: 'מה קורה בסיום תקופת הליסינג?',
@@ -161,8 +161,8 @@ export const TRANSLATIONS = {
           a: 'תנאי האחריות ורמת השירות מוגדרים במסמך ההצעה הרשמי בהתאם לסוג הדגם ולכמות המוזמנת.',
         },
         {
-          q: 'האם המחירים באתר כוללים מע״מ?',
-          a: 'לא. כל המחירים המוצגים באתר הינם מחירי בסיס לעסקים לפני מע״מ כחוק.',
+          q: 'מה המחיר המוצג באתר?',
+          a: 'המחירים המוצגים הם המחירים הסופיים.',
         },
       ],
     },
@@ -176,7 +176,7 @@ export const TRANSLATIONS = {
       shortRental: 'השכרה גמישה (עד שנה)',
       directBuy: 'רכישה מלאה',
       quantity: 'כמות',
-      rateBeforeVat: 'עלות (לפני מע״מ)',
+      rateBeforeVat: 'עלות',
       monthlyText: '₪{amount} לחודש',
       oneTimeText: '₪{amount} חד-פעמי',
       companyName: 'שם החברה / עסק',
@@ -222,7 +222,7 @@ export const TRANSLATIONS = {
     footer: {
       tagline: 'PC-LEASE — מחשבים ניידים עסקיים בליסינג, השכרה ורכישה.',
       address: 'תל אביב · שירות בפריסה ארצית',
-      vatNote: 'כל המחירים הינם לפני מע״מ כחוק. תנאי ההתקשרות הסופיים נקבעים בהצעת המחיר.',
+      vatNote: 'תנאי ההתקשרות הסופיים נקבעים בהצעת המחיר.',
       copyright: '© 2026 PC-LEASE. כל הזכויות שמורות.',
       topBtn: 'חזרה לראש העמוד',
     },
@@ -250,7 +250,7 @@ export const TRANSLATIONS = {
       subtitle: 'Refurbished Grade-A business laptops from Dell, HP and Lenovo. Predictable 36-month lease terms, flexible rentals up to 1 year, and direct purchase.',
       ctaPrimary: 'Choose Model & Plan',
       ctaSecondary: 'Instant Cost Calculator',
-      tariffPill: '36-Mo Lease: ₪99/mo · Rental up to 1 Yr: ₪149/mo · Purchase: ₪2,000 · Excl. VAT',
+      tariffPill: '36-Mo Lease: ₪99/mo · Rental up to 1 Yr: ₪149/mo · Purchase: ₪2,000',
       refurbishedNote: 'Premium Enterprise Hardware · Availability Confirmed on Quote',
       pauseMotion: 'Pause 3D effects',
       playMotion: 'Play 3D effects',
@@ -267,11 +267,11 @@ export const TRANSLATIONS = {
       touch: '14″ Touchscreen',
       nonTouch: '14″ Anti-Glare',
       leaseRate: '₪99 / month',
-      leaseSub: '36-month lease · Excl. VAT',
+      leaseSub: '36-month lease',
       shortRentalRate: '₪149 / month',
-      shortRentalSub: 'Up to 1 year rental · Excl. VAT',
+      shortRentalSub: 'Up to 1 year rental',
       buyRate: '₪2,000',
-      buySub: 'Direct purchase · Excl. VAT',
+      buySub: 'Direct purchase',
       calculateCta: 'Calculate Cost for this Model',
       viewDetails: 'Full Specs & Quote',
       statusNote: 'Exact condition and stock confirmed in written quotation',
@@ -285,7 +285,7 @@ export const TRANSLATIONS = {
     calculator: {
       kicker: 'FINANCIAL ESTIMATOR',
       title: 'Calculate Monthly Costs for Your Team',
-      subtitle: 'Choose a model, quantity and acquisition path for an instant pre-VAT estimate.',
+      subtitle: 'Choose a model, quantity and acquisition path for an instant estimate.',
       deviceLabel: 'Select Laptop Model',
       modeLabel: 'Acquisition Model',
       leaseMode: '36-Month Lease',
@@ -303,9 +303,9 @@ export const TRANSLATIONS = {
       monthlyTotalLabel: 'Total Monthly Payment',
       purchaseTotalLabel: 'Total Outright Cost',
       perUnitNote: 'For {qty} units of {model}',
-      beforeVat: 'All figures exclude VAT',
+      beforeVat: 'Displayed cost',
       leaseTermsNote: 'Standard lease term is 36 months. Flexible rental is available up to 12 months based on shelf availability.',
-      continueCta: 'Proceed to Official Quote Request',
+      continueCta: 'Continue to order or estimate',
       validationError: 'Please enter an integer between 1 and 1,000.',
     },
     story: {
@@ -322,7 +322,7 @@ export const TRANSLATIONS = {
         {
           num: '02',
           title: 'Choose Plan (Lease, Rental or Purchase)',
-          desc: 'Select 36-month lease (₪99/mo), flexible rental up to 1 year (₪149/mo) or direct purchase (₪2,000).',
+          desc: 'Choose lease, short-term rental or purchase. Prices depend on the selected model.',
           badge: 'Total Flexibility',
         },
         {
@@ -362,11 +362,11 @@ export const TRANSLATIONS = {
       items: [
         {
           q: 'What is the difference between 36-month lease and rental up to 1 year?',
-          a: 'The 36-month lease offers our lowest rate (₪99/mo before VAT) for long-term predictability. The flexible rental option (₪149/mo) is ideal for short-term projects, seasonal staff, or teams needing agile commitments up to 12 months.',
+          a: 'Lease is intended for longer periods; short-term rental supports temporary needs. Rates and terms depend on the selected model.',
         },
         {
           q: 'What is included in the PC-LEASE plan?',
-          a: 'A lab-tested refurbished business laptop, fixed monthly fee for 36 months (₪99 before VAT), and an official formal quotation document. Stock is verified before final contract signing.',
+          a: 'A refurbished business laptop with monthly pricing and terms confirmed in a quotation. Availability requires confirmation.',
         },
         {
           q: 'Are the computers new or refurbished?',
@@ -374,7 +374,7 @@ export const TRANSLATIONS = {
         },
         {
           q: 'How is pricing determined?',
-          a: 'Pricing is fixed and transparent: ₪99/month on a 36-month lease, ₪149/month on flexible rental up to 1 year, or ₪2,000 outright purchase, all excluding VAT.',
+          a: 'Prices depend on the model and plan.',
         },
         {
           q: 'What occurs at the end of the 36-month lease?',
@@ -389,8 +389,8 @@ export const TRANSLATIONS = {
           a: 'Warranty coverage and service terms are specified in the written quotation in accordance with model tier and fleet size.',
         },
         {
-          q: 'Do prices on the site include VAT?',
-          a: 'No. All prices displayed across the site are base B2B figures excluding statutory VAT.',
+          q: 'What is the displayed price?',
+          a: 'The prices displayed on the site are final.',
         },
       ],
     },
@@ -404,7 +404,7 @@ export const TRANSLATIONS = {
       shortRental: 'Flexible Rental (Up to 1 Year)',
       directBuy: 'Outright Purchase',
       quantity: 'Quantity',
-      rateBeforeVat: 'Cost (Excl. VAT)',
+      rateBeforeVat: 'Cost',
       monthlyText: '₪{amount} / mo',
       oneTimeText: '₪{amount} one-time',
       companyName: 'Company / Business Name',
@@ -450,7 +450,7 @@ export const TRANSLATIONS = {
     footer: {
       tagline: 'PC-LEASE — Enterprise business laptop leasing, rental & purchase.',
       address: 'Tel Aviv · Nationwide deployment',
-      vatNote: 'All prices exclude VAT. Final terms, delivery and availability confirmed in written quote.',
+      vatNote: 'Final terms, delivery and availability confirmed in written quote.',
       copyright: '© 2026 PC-LEASE. All rights reserved.',
       topBtn: 'Back to top',
     },

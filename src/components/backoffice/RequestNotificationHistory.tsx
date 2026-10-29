@@ -1,0 +1,10 @@
+import React,{useEffect,useRef,useState} from 'react';
+import {Language} from '../../types';
+export type NotificationEvent={id:string;result?:string;actor_email:string;created_at:string};
+export function RequestNotificationHistory({lang,requestId,kind,initial,hasMore}:{lang:Language;requestId:string;kind:'attempt'|'resolution';initial:NotificationEvent[];hasMore:boolean}){
+ const [events,setEvents]=useState(initial),[more,setMore]=useState(hasMore),[state,setState]=useState<'ready'|'loading'|'error'>('ready');const generation=useRef(0);
+ useEffect(()=>{generation.current++;setEvents(initial);setMore(hasMore);setState('ready');return()=>{generation.current++;};},[requestId,kind,initial,hasMore]);
+ const load=async()=>{if(state==='loading'||!events.length)return;const current=generation.current;setState('loading');try{const query=new URLSearchParams({requestId,kind,before:events[events.length-1].id});const r=await fetch(`/api/admin/requests/notification-history?${query}`);if(!r.ok)throw Error();const data=await r.json();if(current!==generation.current)return;setEvents(previous=>[...previous,...data.history]);setMore(data.hasMore);setState('ready');}catch{if(current===generation.current)setState('error');}};
+ if(!events.length)return null;
+ return <details><summary className="cursor-pointer underline">{kind==='attempt'?(lang==='he'?'ניסיונות שליחה':'Notification attempts'):(lang==='he'?'בדיקות התראה':'Notification checks')}</summary><ul>{events.map(event=><li key={event.id}>{new Date(event.created_at).toLocaleString()} · {kind==='attempt'?event.result:(lang==='he'?'לא נמצא בתיבה':'Not found in mailbox')} · <bdi>{event.actor_email}</bdi></li>)}</ul>{more&&<button type="button" disabled={state==='loading'} onClick={load} className="underline mt-2">{state==='loading'?(lang==='he'?'טוען...':'Loading...'):(lang==='he'?'הצג היסטוריה נוספת':'Show more history')}</button>}{state==='error'&&<p role="alert">{lang==='he'?'לא ניתן לטעון היסטוריה. נסו שוב.':'Could not load history. Try again.'}</p>}</details>;
+}

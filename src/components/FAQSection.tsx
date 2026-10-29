@@ -1,39 +1,46 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Language } from '../types';
-import { TRANSLATIONS } from '../data/translations';
+import { sectionDefaults } from '../data/section-defaults.mjs';
+
+export type FAQContent = typeof sectionDefaults.faq;
+export type FAQBlock = { content: FAQContent; version: number };
 
 interface FAQSectionProps {
   lang: Language;
+  content?: FAQContent;
 }
 
-export const FAQSection: React.FC<FAQSectionProps> = ({ lang }) => {
+export const FAQSection: React.FC<FAQSectionProps> = ({ lang, content = sectionDefaults.faq }) => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
-  const t = TRANSLATIONS[lang];
+  const suffix = lang === 'he' ? 'He' : 'En';
+  const v = (key: string) => content[`${key}${suffix}` as keyof FAQContent] as string;
+  const items = Array.from({ length: 8 }, (_, i) => ({ q: v(`question${i + 1}`), a: v(`answer${i + 1}`) }));
 
   const toggleItem = (idx: number) => {
     setOpenIndex(openIndex === idx ? null : idx);
   };
 
+  if (!content.visible) return null;
   return (
     <section id="faq" className="py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-surface)]">
       <div className="max-w-[900px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-12">
           <span className="text-xs font-bold uppercase tracking-widest text-[var(--accent)]">
-            {t.faq.kicker}
+            {v('kicker')}
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)] mt-2">
-            {t.faq.title}
+            {v('title')}
           </h2>
           <p className="text-sm sm:text-base text-[var(--text-secondary)] mt-3">
-            {t.faq.subtitle}
+            {v('subtitle')}
           </p>
         </div>
 
         {/* Accordion List */}
         <div className="space-y-3">
-          {t.faq.items.map((item, idx) => {
+          {items.map((item, idx) => {
             const isOpen = openIndex === idx;
             return (
               <div

@@ -1,0 +1,1 @@
+{"name":"pc-lease-server","private":true,"type":"module","dependencies":{"nodemailer":"10.2.1","pg":"8.23.0"},"devDependencies":{"embedded-postgres":"18.4.0-beta.17"}}
