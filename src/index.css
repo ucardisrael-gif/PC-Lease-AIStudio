@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 section[id] { scroll-margin-top: 5rem; }
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
