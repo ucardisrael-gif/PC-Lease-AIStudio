@@ -11,6 +11,8 @@ interface HeaderProps {
   onToggleTheme: () => void;
   onOpenClientLogin: () => void;
   onOpenAdmin: () => void;
+  onOpenDealer: () => void;
+  isDealer: boolean;
   onOpenQuote: () => void;
   quoteAvailable: boolean;
   isAdmin: boolean;
@@ -25,6 +27,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   onOpenClientLogin,
   onOpenAdmin,
+  onOpenDealer,
+  isDealer,
   onOpenQuote,
   quoteAvailable,
   isAdmin,
@@ -35,11 +39,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 backdrop-blur-md bg-[var(--bg-page)]/95 border-b border-[var(--border-line)] transition-colors duration-200">
-      {isAdmin && <div className="border-b border-[var(--border-line)] bg-[var(--bg-surface)]">
+      {(isAdmin || isDealer) && <div className="border-b border-[var(--border-line)] bg-[var(--bg-surface)]">
         <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 min-h-8 flex justify-center items-center">
-          <button type="button" onClick={onOpenAdmin} className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md text-[var(--text-primary)] hover:bg-[var(--badge-bg)] focus-visible:outline-2 focus-visible:outline-blue-600" aria-label={lang === 'he' ? 'ניהול' : 'Administration'}>
+          {isAdmin && <button type="button" onClick={onOpenAdmin} className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md text-[var(--text-primary)] hover:bg-[var(--badge-bg)] focus-visible:outline-2 focus-visible:outline-blue-600" aria-label={lang === 'he' ? 'ניהול' : 'Administration'}>
             <ShieldCheck className="w-4 h-4 text-sky-500" /><span>{lang === 'he' ? 'ניהול' : 'Administration'}</span>
-          </button>
+          </button>}
+          {isDealer && <button type="button" onClick={onOpenDealer} className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md text-[var(--text-primary)] hover:bg-[var(--badge-bg)]">{lang==='he'?'אזור שותפים':'Dealer workspace'}</button>}
         </div>
       </div>}
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between gap-2 sm:gap-4">

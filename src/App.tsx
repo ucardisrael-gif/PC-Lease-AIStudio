@@ -1,3 +1,4 @@
+import { DealerWorkspace } from './components/DealerWorkspace';
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { HeroBlock, HeroSection } from './components/HeroSection';
@@ -171,8 +172,9 @@ export default function App() {
   const [checkoutQuantity, setCheckoutQuantity] = useState<number>(1);
   const [checkoutRentalDays, setCheckoutRentalDays] = useState<number>(30);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isDealerOpen,setIsDealerOpen]=useState(false);
   const [adminEmail, setAdminEmail] = useState('');
-  const [sessionUser, setSessionUser] = useState<{ email: string; role: 'admin' | 'customer'; permissions?: string[]; displayName?: string | null } | null>(null);
+  const [sessionUser, setSessionUser] = useState<{ email: string; role: 'admin' | 'customer'; permissions?: string[]; displayName?: string | null; dealerAccess?: boolean; dealerAccessVersion?: number } | null>(null);
   const [sessionLoaded,setSessionLoaded]=useState(false);
   const [accessChanged,setAccessChanged]=useState(false);
   const [pendingOrder,setPendingOrder]=useState('');
@@ -181,12 +183,12 @@ export default function App() {
   useEffect(() => { fetch('/api/auth/me').then(r => r.ok ? r.json() : Promise.reject()).then(data => setSessionUser(data.user)).catch(() => setSessionUser(null)).finally(()=>setSessionLoaded(true)); }, []);
   useEffect(()=>{if(!sessionLoaded||!pendingOrder)return;if(!sessionUser){setIsClientLoginOpen(true);return;}if(sessionUser.role==='admin'||sessionUser.permissions?.includes('orders')){setAdminOrder(pendingOrder);setAdminEmail(sessionUser.email);setIsClientLoginOpen(false);setIsAdminOpen(true);setPendingOrder('');window.history.replaceState(null,'',window.location.pathname+window.location.search);} },[sessionLoaded,pendingOrder,sessionUser]);
   useEffect(()=>{
-    if(!isAdminOpen||!sessionUser)return;
+    if((!isAdminOpen&&!isDealerOpen)||!sessionUser)return;
     let active=true,checking=false;
-    const refresh=async()=>{if(checking||document.visibilityState==='hidden')return;checking=true;try{const response=await fetch('/api/auth/me');if(!response.ok)return;const user=(await response.json()).user;if(!active)return;const permissions=(value:string[]|undefined)=>[...(value||[])].sort().join(',');if(!user||user.email!==sessionUser.email||user.role!==sessionUser.role||permissions(user.permissions)!==permissions(sessionUser.permissions)){setSessionUser(user);setIsAdminOpen(false);setAdminOrder('');setAccessChanged(true);}}catch{}finally{checking=false;}};
+    const refresh=async()=>{if(checking||document.visibilityState==='hidden')return;checking=true;try{const response=await fetch('/api/auth/me');if(!response.ok)return;const user=(await response.json()).user;if(!active)return;const permissions=(value:string[]|undefined)=>[...(value||[])].sort().join(',');if(!user||user.email!==sessionUser.email||user.role!==sessionUser.role||permissions(user.permissions)!==permissions(sessionUser.permissions)||user.dealerAccess!==sessionUser.dealerAccess||user.dealerAccessVersion!==sessionUser.dealerAccessVersion){setSessionUser(user);setIsAdminOpen(false);setIsDealerOpen(false);setAdminOrder('');setAccessChanged(true);}}catch{}finally{checking=false;}};
     const onVisibility=()=>{if(document.visibilityState==='visible')void refresh();};window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',onVisibility);
     return()=>{active=false;window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',onVisibility);};
-  },[isAdminOpen,sessionUser]);
+  },[isAdminOpen,isDealerOpen,sessionUser]);
   const openAdmin = async () => {
     try {
       const response = await fetch('/api/auth/me');
@@ -240,6 +242,8 @@ export default function App() {
         onToggleTheme={handleToggleTheme}
         onOpenClientLogin={() => setIsClientLoginOpen(true)}
         onOpenAdmin={openAdmin}
+        isDealer={!!sessionUser?.dealerAccess}
+        onOpenDealer={async()=>{try{const r=await fetch('/api/auth/me');const user=r.ok?(await r.json()).user:null;setSessionUser(user);if(user?.dealerAccess)setIsDealerOpen(true);}catch{setSessionUser(null);}}}
         isAdmin={sessionUser?.role === 'admin' || !!sessionUser?.permissions?.length}
         sessionUser={sessionUser}
         quoteAvailable={catalogStatus === 'ready' && !!selectedProduct}
@@ -387,6 +391,7 @@ export default function App() {
 
       <ClientLoginModal lang={lang} admin isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} onSessionChange={setSessionUser} onAdminAccess={(email) => { setAdminEmail(email); setIsAdminLoginOpen(false); setIsAdminOpen(true); }} />
 
+      {isDealerOpen && <DealerWorkspace lang={lang} onClose={()=>setIsDealerOpen(false)}/>}
       {isAdminOpen && <OwnerBackOffice
         initialOrderId={adminOrder} lang={lang} theme={theme} adminEmail={adminEmail} fullAdmin={sessionUser?.role === 'admin'} permissions={sessionUser?.permissions || []} onCatalogChanged={() => setCatalogAttempt(n => n + 1)}
         onTrustSaved={setTrust}

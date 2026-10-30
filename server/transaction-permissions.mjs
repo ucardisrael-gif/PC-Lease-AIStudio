@@ -23,7 +23,7 @@ export async function requireTransactionPermission(client, actor, permission) {
  const user=(await client.query('SELECT role,active FROM users WHERE id=$1 FOR SHARE',[actor])).rows[0];
  if(!user?.active)throw Error('forbidden');
  await requireLiveSession(client,actor);
- const permissions=(await client.query('SELECT permission FROM staff_permissions WHERE user_id=$1',[actor])).rows.map(row=>row.permission);
+ const permissions=(await client.query('SELECT permission FROM staff_permissions WHERE user_id=$1 UNION SELECT unnest(r.permissions) AS permission FROM access_roles r JOIN access_role_assignments a ON a.role_id=r.id WHERE a.user_id=$1',[actor])).rows.map(row=>row.permission);
  if(user.role!=='admin'&&!permissions.includes(permission))throw Error('forbidden');
  return {userId:actor,admin:user.role==='admin',catalog:permissions.includes('catalog'),content:permissions.includes('content')};
 }

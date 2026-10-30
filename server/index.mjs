@@ -1,3 +1,5 @@
+import {getDealerAccess,setDealerAccess,listOwnDealerOrders} from './dealer-access.mjs';
+import {listAccessRoles,saveAccessRole,assignAccessRoles,deleteAccessRole,listAccessRoleHistory} from './access-roles.mjs';
 import { createServer } from 'node:http';
 import { openDatabase } from './database.mjs';
 import { getCatalog } from './catalog.mjs';
@@ -487,6 +489,24 @@ async function handleRequest(req, res) {
       const result=req.method==='GET'?await listDealers(db,new URL(req.url,'http://localhost').searchParams):{dealer:await saveDealer(db,user.id,await readJson(req))};res.writeHead(200).end(JSON.stringify(result));
     }catch(e){const code=['forbidden','invalid_input','version_conflict','create_conflict','not_found'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='unavailable'?503:code==='not_found'?404:code==='invalid_input'?400:409).end(JSON.stringify({error:code}));}return;
   }
+  if (['GET','POST'].includes(req.method) && ['/api/admin/access-roles','/api/admin/access-roles/assign','/api/admin/access-roles/delete','/api/admin/access-roles/history'].includes(new URL(req.url,'http://localhost').pathname)) {
+    try {
+      const user=await currentUser(db,sessionToken(req));
+      if(!user||user.role!=='admin'||(req.method==='POST'&&!allowedOrigin(req))){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}
+      const url=new URL(req.url,'http://localhost'), path=url.pathname;
+      if ((req.method==='GET' && !['/api/admin/access-roles','/api/admin/access-roles/history'].includes(path)) || (req.method==='POST' && path==='/api/admin/access-roles/history')) {res.writeHead(405).end();return;}
+      const result=req.method==='GET'?(path.endsWith('/history')?await listAccessRoleHistory(db,url.searchParams):await listAccessRoles(db)):path.endsWith('/assign')?await assignAccessRoles(db,user.id,await readJson(req)):path.endsWith('/delete')?await deleteAccessRole(db,user.id,await readJson(req)):{role:await saveAccessRole(db,user.id,await readJson(req))};
+      res.writeHead(200).end(JSON.stringify(result));
+    }catch(e){const code=['forbidden','invalid_input','not_found','version_conflict','name_conflict','admin_has_full_access','dealer_only_account'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='not_found'?404:code==='invalid_input'||code==='admin_has_full_access'?400:code==='unavailable'?503:409).end(JSON.stringify({error:code}));}return;
+  }
+  if ((req.method==='GET' && req.url?.startsWith('/api/admin/dealer-access?')) || (req.method==='POST' && req.url==='/api/admin/dealer-access')) {
+    try {const user=await currentUser(db,sessionToken(req));if(!user||user.role!=='admin'||(req.method==='POST'&&!allowedOrigin(req))){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const result=req.method==='GET'?await getDealerAccess(db,new URL(req.url,'http://localhost').searchParams.get('userId')):await setDealerAccess(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify(result));}
+    catch(e){const code=['forbidden','invalid_input','not_found','version_conflict','dealer_inactive','dealer_has_staff_access'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:code==='not_found'?404:code==='unavailable'?503:409).end(JSON.stringify({error:code}));}return;
+  }
+  if (req.method==='GET' && (['/api/dealer/orders','/api/dealer/clients'].includes(new URL(req.url,'http://localhost').pathname))) {
+    try {const user=await currentUser(db,sessionToken(req));if(!user){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const data=await listOwnDealerOrders(db,user.id,new URL(req.url,'http://localhost').searchParams,new URL(req.url,'http://localhost').pathname.endsWith('/clients')?'clients':'orders');res.writeHead(200).end(JSON.stringify(data));}
+    catch(e){const code=['forbidden','invalid_input'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:503).end(JSON.stringify({error:code}));}return;
+  }
   if(req.method==='GET'&&req.url?.startsWith('/api/admin/users/access-history?')){
     try{const user=await currentUser(db,sessionToken(req));if(!user||user.role!=='admin'){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const result=await listAccessHistory(db,new URL(req.url,'http://localhost').searchParams);res.writeHead(200).end(JSON.stringify(result));}
     catch(error){const code=['invalid_input','user_not_found'].includes(error.message)?error.message:'unavailable';res.writeHead(code==='invalid_input'?400:code==='user_not_found'?404:503).end(JSON.stringify({error:code}));}return;
@@ -504,8 +524,8 @@ async function handleRequest(req, res) {
       const updated = req.url === '/api/admin/users/profile' ? await saveUserProfileAsAdmin(db, user.id, input) : req.url === '/api/admin/users/organization' ? await linkUserOrganization(db,user.id,input) : req.url === '/api/admin/users/permissions' ? await saveStaffPermissions(db,user.id,input) : req.url === '/api/admin/users/active' ? await setUserActive(db,user.id,input) : await changeUserRole(db, user.id, input);
       res.writeHead(200).end(JSON.stringify({ user:updated }));
     } catch (error) {
-      const code = ['forbidden','invalid_input','cannot_demote_self','cannot_disable_self','last_admin','user_not_found','organization_not_found','version_conflict','admin_has_full_access'].includes(error.message) ? error.message : 'unavailable';
-      res.writeHead(code === 'forbidden' ? 403 : code === 'unavailable' ? 503 : code === 'user_not_found' || code === 'organization_not_found' ? 404 : code === 'version_conflict' ? 409 : 400).end(JSON.stringify({ error:code }));
+      const code = ['forbidden','invalid_input','cannot_demote_self','cannot_disable_self','last_admin','user_not_found','organization_not_found','version_conflict','admin_has_full_access','dealer_only_account'].includes(error.message) ? error.message : 'unavailable';
+      res.writeHead(code === 'forbidden' ? 403 : code === 'unavailable' ? 503 : code === 'user_not_found' || code === 'organization_not_found' ? 404 : ['version_conflict','dealer_only_account'].includes(code) ? 409 : 400).end(JSON.stringify({ error:code }));
     }
     return;
   }

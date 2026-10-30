@@ -41,7 +41,7 @@ export async function login(db, email, password) {
 }
 export async function currentUser(db, token) {
   if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return null;
-  const result = await db.query("SELECT u.id,u.email,u.role,(u.email_verified_at IS NOT NULL) AS \"emailVerified\",NULLIF(u.first_name,'') AS \"displayName\",COALESCE((SELECT array_agg(p.permission ORDER BY p.permission) FROM staff_permissions p WHERE p.user_id=u.id),ARRAY[]::text[]) AS permissions FROM auth_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now() AND u.active=true", [digest(token)]);
+  const result = await db.query("SELECT u.id,u.email,u.role,(u.email_verified_at IS NOT NULL) AS \"emailVerified\",NULLIF(u.first_name,'') AS \"displayName\",COALESCE((SELECT array_agg(p.permission ORDER BY p.permission) FROM (SELECT permission FROM staff_permissions WHERE user_id=u.id UNION SELECT unnest(r.permissions) AS permission FROM access_roles r JOIN access_role_assignments a ON a.role_id=r.id WHERE a.user_id=u.id) p),ARRAY[]::text[]) AS permissions, EXISTS(SELECT 1 FROM dealer_user_access da JOIN dealers d ON d.id=da.dealer_id WHERE da.user_id=u.id AND d.active=true) AS \"dealerAccess\", u.dealer_access_version AS \"dealerAccessVersion\" FROM auth_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now() AND u.active=true", [digest(token)]);
   return result.rows[0] ?? null;
 }
 export async function logout(db, token) { if (token) await db.query('DELETE FROM auth_sessions WHERE token_hash=$1', [digest(token)]); }
