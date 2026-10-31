@@ -1,5 +1,5 @@
 import { rentalCost, hasRentalRates } from '../data/pricing';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Check, Cpu, HardDrive, Monitor, Shield, ArrowRight, ArrowLeft, Clock, Calendar } from 'lucide-react';
 import { AcquisitionMode, Language, LaptopProduct } from '../types';
 import { TRANSLATIONS } from '../data/translations';
@@ -28,6 +28,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [mode, setMode] = useState<AcquisitionMode>('lease');
   const [quantity, setQuantity] = useState<number>(1);
   const [rentalDays, setRentalDays] = useState<number>(30);
+  const [photo,setPhoto]=useState('');
+  useEffect(()=>setPhoto(''),[product?.id]);
 
   if (!product) return null;
 
@@ -66,11 +68,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             className="md:col-span-5 relative aspect-[4/3] rounded-xl bg-gradient-to-b from-[var(--bg-page)] to-[var(--bg-surface)] p-4 flex items-center justify-center border border-[var(--border-subtle)] overflow-hidden group"
           >
             <div className="absolute inset-0 bg-sky-500/10 rounded-xl blur-lg opacity-40 group-hover:opacity-80 transition duration-500 pointer-events-none" />
-            <ProductImage product={product} lang={lang} />
+            <ProductImage product={photo?{...product,imagePath:photo,imageVerified:true}:product} lang={lang} />
           </div>
 
           {/* Details Column */}
           <div className="md:col-span-7 space-y-5">
+            {product.imageVerified && !!product.gallery?.length && <div className="flex flex-wrap gap-2">{[...new Set([product.imagePath,...product.gallery].filter(Boolean))].map((path,i)=><button type="button" key={path} onClick={()=>setPhoto(path)} aria-label={isRtl?`תמונה ${i+1}`:`Photo ${i+1}`} aria-pressed={(photo||product.imagePath)===path} className={`w-16 h-14 rounded-lg border bg-white p-1 ${(photo||product.imagePath)===path?'border-blue-600 ring-2 ring-blue-300':'border-slate-300'}`}><img src={path} alt="" className="w-full h-full object-contain"/></button>)}</div>}
             <div>
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 mb-1">
                 <span>{product.manufacturer}</span>
@@ -85,6 +88,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </p>
             </div>
 
+            {specsConfirmed(product)&&!!product.customSpecs?.length&&<dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl bg-[var(--bg-page)] p-3">{product.customSpecs.map((spec,i)=><div key={i}><dt className="text-xs text-[var(--text-secondary)]">{isRtl?spec.nameHe:spec.nameEn}</dt><dd className="text-sm font-semibold">{isRtl?spec.valueHe:spec.valueEn}</dd></div>)}</dl>}
             {/* Specifications Matrix */}
             {specsConfirmed(product) && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-lg bg-[var(--bg-page)] border border-[var(--border-subtle)] text-xs">
               <div className="flex items-start gap-2">
@@ -156,7 +160,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   }`}
                 >
                   <div className="text-[11px]">{isRtl ? 'השכרה (מ־7 ימים עד שנה)' : 'Rental (7 days to one year)'}</div>
-                  <div className="text-xs font-mono tabular-nums font-bold">{hasRentalRates(product) ? `₪${rentalCost(product,7)}/${isRtl ? '7 ימים' : '7 days'} · ₪${product.rentalRates.monthly}/30 ${isRtl ? 'יום' : 'days'}` : (isRtl ? 'מחיר לפי בקשה' : 'Price on request')}</div>
+                  <div className="text-xs font-mono tabular-nums font-bold">{hasRentalRates(product) ? `₪${rentalCost(product,7)}/${isRtl ? '7 ימים' : '7 days'} · ₪${rentalCost(product,30)}/30 ${isRtl ? 'יום' : 'days'}` : (isRtl ? 'מחיר לפי בקשה' : 'Price on request')}</div>
                 </button>
               </div>
 

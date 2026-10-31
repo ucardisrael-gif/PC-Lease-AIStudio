@@ -251,8 +251,9 @@ export const OwnerBackOffice: React.FC<OwnerBackOfficeProps> = ({
   const [unprotectedDealer,setUnprotectedDealer]=useState(false);
   const [unprotectedService,setUnprotectedService]=useState(false);
   const [unprotectedSections,setUnprotectedSections]=useState<Record<string,boolean>>({});
+  const [productExitNotice,setProductExitNotice]=useState(false);
   const updateSectionDirty=useCallback((section:string,dirty:boolean)=>setUnprotectedSections(current=>current[section]===dirty?current:{...current,[section]:dirty}),[]);
-  const allowSectionsExit=()=>!Object.values(unprotectedSections).some(Boolean)||window.confirm(isRtl?'יש שינויים בתוכן האתר שלא נשמרו או שלא אומתו. להמשיך?':'Site content has unsaved or unconfirmed changes. Continue?');
+  const allowSectionsExit=()=>{if(unprotectedSections.products){setProductExitNotice(true);return false;}setProductExitNotice(false);return !Object.values(unprotectedSections).some(Boolean)||window.confirm(isRtl?'יש שינויים בתוכן האתר שלא נשמרו או שלא אומתו. להמשיך?':'Site content has unsaved or unconfirmed changes. Continue?');};
   const [unprotectedTax,setUnprotectedTax]=useState(false);
   const [unprotectedNotification,setUnprotectedNotification]=useState(false);
   const [unprotectedFinance,setUnprotectedFinance]=useState(false);
@@ -687,6 +688,7 @@ export const OwnerBackOffice: React.FC<OwnerBackOfficeProps> = ({
           </button>
 
           {activeTab === 'cms' && <nav aria-label={isRtl ? 'תפריט ניהול האתר' : 'Site management menu'} className="flex flex-col gap-1 ms-4 mb-2 border-s border-slate-300 dark:border-slate-700 ps-2">
+            {productExitNotice&&unprotectedSections.products&&<p role="status" className="rounded-xl bg-amber-50 dark:bg-amber-950 p-2 text-xs text-amber-800 dark:text-amber-200">{isRtl?'יש לשמור או לסגור את כרטיס המוצר לפני מעבר.':'Save or close the product card before navigating.'}</p>}
             {([['home','עמוד הבית','Home page'],['catalog','קטלוג ומוצרים','Catalog & products'],['about','אודות','About page'],['contact','יצירת קשר','Contact page'],['footer','תחתית האתר','Footer'],['navigation','תפריט האתר','Navigation']] as const).filter(([id]) => id === 'catalog' ? canCatalog : canContent).map(([id, he, en]) => <button key={id} type="button" onClick={() => {if(allowSectionsExit())setCmsGroup(id);}} aria-current={cmsGroup === id ? 'page' : undefined} className={`px-3 py-2 rounded-lg text-xs font-semibold text-start ${cmsGroup === id ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-100' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>{isRtl ? he : en}</button>)}
           </nav>}
 

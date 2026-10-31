@@ -37,6 +37,8 @@ export interface LaptopProduct {
   displayOrder?: number | null;
   featured?: boolean;
   imagePath: string;
+  gallery?: string[];
+  customSpecs?: {nameHe:string;nameEn:string;valueHe:string;valueEn:string}[];
   imageAlt?: { he: string; en: string };
   imageVerified?: boolean;
   detailsConfirmed?: boolean;

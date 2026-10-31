@@ -13,6 +13,7 @@ export async function readProductMedia(db,id,access={}){
  if(!idOk(id))throw Error('not_found');const result=await db.query(`SELECT m.data FROM product_media m WHERE m.id=$1 AND (
   $2::boolean OR (m.created_by=$3 AND ($4::boolean OR $5::boolean))
   OR EXISTS(SELECT 1 FROM products p WHERE p.details_json->>'imagePath'='/api/media/'||m.id AND ($4::boolean OR (p.published=true AND p.details_json->>'imageVerified'='true')))
+  OR EXISTS(SELECT 1 FROM products p WHERE (p.details_json->'gallery') ? ('/api/media/'||m.id) AND ($4::boolean OR (p.published=true AND p.details_json->>'imageVerified'='true')))
   OR EXISTS(SELECT 1 FROM site_blocks b WHERE b.block_key IN ('hero','about','workspace') AND b.content->>'imageUrl'='/api/media/'||m.id AND ($5::boolean OR b.content->>'visible'='true'))
  )`,[id,access.admin===true,access.userId||null,access.catalog===true,access.content===true]);if(!result.rowCount)throw Error('not_found');return result.rows[0].data;
 }

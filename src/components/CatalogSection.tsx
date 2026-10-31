@@ -237,7 +237,7 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
                     <div className="p-2 rounded bg-[var(--bg-page)] border border-[var(--border-subtle)]">
                       <div className="text-[10px] text-[var(--text-secondary)]">{lang === 'he' ? 'השכרה (מ־7 ימים עד שנה)' : 'Rental (7 days to one year)'}</div>
                       <div className="text-sm font-black text-sky-600 dark:text-sky-400 font-mono tabular-nums">
-                        {hasRentalRates(product) ? <>₪{rentalCost(product,7)} <span className="text-[10px] font-normal">/ {lang === 'he' ? '7 ימים' : '7 days'} · ₪{product.rentalRates.monthly}/30 {lang === 'he' ? 'יום' : 'days'}</span></> : (lang === 'he' ? 'מחיר לפי בקשה' : 'Price on request')}
+                        {hasRentalRates(product) ? <>₪{rentalCost(product,7)} <span className="text-[10px] font-normal">/ {lang === 'he' ? '7 ימים' : '7 days'} · ₪{rentalCost(product,30)}/30 {lang === 'he' ? 'יום' : 'days'}</span></> : (lang === 'he' ? 'מחיר לפי בקשה' : 'Price on request')}
                       </div>
                     </div>
                   </div>
