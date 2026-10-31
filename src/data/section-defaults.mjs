@@ -56,7 +56,7 @@ export const sectionDefaults = {
   footer: {
     visible: true,
     showContact: false,
-    taglineHe: 'PC-LEASE — מחשבים ניידים עסקיים בליסינג, השכרה ורכישה.', taglineEn: 'PC-LEASE — Enterprise business laptop leasing, rental & purchase.',
+    taglineHe: 'מחשבים עסקיים בליסינג והשכרה', taglineEn: 'PC-LEASE — Enterprise business laptop leasing, rental & purchase.',
     noteHe: 'תנאי ההתקשרות הסופיים נקבעים בהצעת המחיר.', noteEn: 'Final terms, delivery and availability confirmed in written quote.',
     copyrightHe: '© 2026 PC-LEASE. כל הזכויות שמורות.', copyrightEn: '© 2026 PC-LEASE. All rights reserved.',
     topHe: 'חזרה לראש העמוד', topEn: 'Back to top'

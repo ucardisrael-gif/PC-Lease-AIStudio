@@ -220,7 +220,7 @@ export const TRANSLATIONS = {
       exitEditor: 'חזרה לאתר',
     },
     footer: {
-      tagline: 'PC-LEASE — מחשבים ניידים עסקיים בליסינג, השכרה ורכישה.',
+      tagline: 'מחשבים עסקיים בליסינג והשכרה',
       address: 'תל אביב · שירות בפריסה ארצית',
       vatNote: 'תנאי ההתקשרות הסופיים נקבעים בהצעת המחיר.',
       copyright: '© 2026 PC-LEASE. כל הזכויות שמורות.',

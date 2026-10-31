@@ -353,6 +353,7 @@ export default function App() {
           products={products.filter((p) => p.published)}
           selectedProduct={selectedProduct}
           paused={modelBlockPaused}
+          onBackToPath={selectionPath==='model' && content.sectionsVisibility.calculator && calculatorContent.visible ? backToPathChoice : undefined}
           calculatorContent={content.sectionsVisibility.calculator && calculatorContent.visible ? calculatorContent : undefined}
           onContinueToQuote={(prod, mode, qty, days)=>handleOpenCheckoutWithPreset(prod, mode, qty, days)}
           onContinueWithLines={(prod,mode,lines,days)=>handleOpenCheckoutWithPreset(prod,mode,lines[0].quantity,days,'','',lines)}
@@ -376,7 +377,7 @@ export default function App() {
           }
         />
       )}
-      {selectionPath==='model' && content.sectionsVisibility.calculator && calculatorContent.visible && <div className="max-w-[1504px] mx-auto px-4 sm:px-6 lg:px-8 pb-8"><button type="button" onClick={backToPathChoice} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-line)] bg-[var(--bg-surface)] px-5 py-3 font-semibold text-blue-600 hover:border-blue-500">{lang==='he'?<ArrowRight aria-hidden="true" className="h-4 w-4"/>:<ArrowLeft aria-hidden="true" className="h-4 w-4"/>}{lang==='he'?'חזרה לבחירת מסלול':'Back to choose a path'}</button></div>}
+      {selectionPath==='model' && content.sectionsVisibility.calculator && calculatorContent.visible && !(content.sectionsVisibility.devices && featured?.content.visible) && <div className="max-w-[1504px] mx-auto px-4 sm:px-6 lg:px-8 pb-8"><button type="button" onClick={backToPathChoice} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-line)] bg-[var(--bg-surface)] px-5 py-3 font-semibold text-blue-600 hover:border-blue-500">{lang==='he'?<ArrowRight aria-hidden="true" className="h-4 w-4"/>:<ArrowLeft aria-hidden="true" className="h-4 w-4"/>}{lang==='he'?'חזרה לבחירת מסלול':'Back to choose a path'}</button></div>}
       </div>
         </>}
         {section === 'story' && <>

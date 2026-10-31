@@ -13,6 +13,8 @@ function currentRentalWording(key, content) {
   } : key === 'hero' ? {
     bodyHe:'מחשבים עסקיים מחודשים של Dell, HP ו־Lenovo, עם שירות ותיקונים שלנו. בחרו ליסינג ל־36 חודשים או השכרה מיום אחד ועד שנה — והתאימו את המחשוב לצוות ולתקציב שלכם.',
     bodyEn:'Refurbished business computers from Dell, HP and Lenovo, backed by our service and repairs. Choose a 36-month lease or rent from one day to one year, with equipment that fits your team and budget.'
+  } : key === 'footer' ? {
+    taglineHe:'PC-LEASE — מחשבים ניידים עסקיים בליסינג, השכרה ורכישה.'
   } : key === 'faq' ? {
     answer1He:'ליסינג הוא הסכם ל-36 חודשים. השכרה מתאימה לתקופה קצרה יותר, מיום אחד ועד שנה. התעריפים תלויים בדגם ובתקופה.',
     answer1En:'A lease is a 36-month agreement. Rental is available for shorter periods, from one day up to one year. Rates depend on the model and period.',
