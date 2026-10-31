@@ -35,13 +35,14 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({ lang, conten
               <img
                 src={content.imageUrl}
                 alt={v('imageLabel')}
-                className={`w-full h-full object-cover transition-transform duration-700 ease-out ${
+                className={`w-full h-full object-cover transition-transform duration-700 ease-out motion-reduce:transition-none motion-reduce:transform-none ${
                   isHovered ? 'scale-108' : 'scale-100'
                 }`}
                 loading="lazy"
                 referrerPolicy="no-referrer"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute top-4 start-4 flex flex-wrap gap-2 pointer-events-none"><span className="rounded-full bg-white/85 dark:bg-slate-900/85 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-white shadow-lg">{v('item1Title')}</span><span className="rounded-full bg-white/85 dark:bg-slate-900/85 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-white shadow-lg">{v('item2Title')}</span></div>
               <div className="absolute bottom-4 start-4 end-4 flex items-center justify-between text-xs text-white/95">
                 <span className="font-mono flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-sky-400" />

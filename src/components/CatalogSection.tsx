@@ -179,7 +179,7 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
             {filteredProducts.map((product) => (
               <div
                 key={product.slug}
-                className="brand-card flex flex-col justify-between rounded-xl bg-[var(--bg-surface)] border border-[var(--border-line)] p-6 shadow-sm hover:shadow-xl hover:border-sky-500/50 hover:-translate-y-1.5 transition-all duration-300 group"
+                className="brand-card flex flex-col justify-between rounded-xl bg-[var(--bg-surface)] border border-[var(--border-line)] p-6 shadow-sm hover:shadow-2xl hover:border-sky-500/50 motion-safe:hover:-translate-y-1 transition-all duration-300 group"
               >
                 <div>
                   {/* Card Header & Kicker */}

@@ -5,6 +5,9 @@ section[id] { scroll-margin-top: 5rem; }
 .brand-logo { display:inline-block; position:relative; aspect-ratio:3.86; flex:none; overflow:hidden; }
 .brand-logo-art { position:absolute; left:50%; top:50%; width:520%; max-width:none; height:auto; transform:translate(-50%,-50%); }
 .brand-logo-art-dark { filter:brightness(1.7); }
+.hero-visual { overflow:hidden; position:relative; }
+@media (min-width: 1024px) { .hero-visual { position:absolute; } }
+@media (hover:hover) and (prefers-reduced-motion:no-preference) { .hero-visual-image { transform:perspective(1000px) rotateX(var(--hero-rotate-x,0deg)) rotateY(var(--hero-rotate-y,0deg)) scale(1.02); transition:transform 350ms ease-out; } }
 
 /* Shared, restrained colour accents for public content. */
 .brand-wash-cyan { background-image: radial-gradient(ellipse at 8% 10%, rgba(56,189,248,.13), transparent 42%), radial-gradient(ellipse at 92% 85%, rgba(99,102,241,.08), transparent 40%); }

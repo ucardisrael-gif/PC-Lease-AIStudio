@@ -42,7 +42,7 @@ export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang, content = sect
         </div>
 
         {/* 4 Interactive Process Steps Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="relative grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 before:absolute before:top-5 before:bottom-5 before:start-5 before:w-px md:before:top-5 md:before:bottom-auto md:before:start-8 md:before:end-8 md:before:w-auto md:before:h-px before:bg-sky-300 dark:before:bg-sky-800">
           {steps.map((step, idx) => {
             const isActive = activeStep === idx;
             return (
@@ -50,7 +50,7 @@ export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang, content = sect
                 key={step.num}
                 type="button"
                 onClick={() => setActiveStep(idx)}
-                className={`brand-card p-5 rounded-xl border text-start transition-all duration-200 flex flex-col justify-between space-y-4 ${
+                className={`group relative brand-card p-5 rounded-xl border text-start transition-all duration-200 flex flex-col justify-between space-y-4 ${
                   isActive
                     ? 'bg-[var(--bg-page)] border-[var(--accent)] shadow-md ring-1 ring-[var(--accent)]/30'
                     : 'bg-[var(--bg-surface)] border-[var(--border-line)] hover:border-[var(--text-secondary)]'
@@ -67,7 +67,7 @@ export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang, content = sect
                     {stepIcons[idx]}
                   </div>
 
-                  <span className="font-mono text-sm font-bold text-[var(--accent)]">
+                  <span className="w-10 h-10 rounded-full grid place-items-center bg-[var(--bg-page)] border border-sky-300 group-hover:bg-sky-600 group-hover:text-white font-mono text-sm font-bold text-[var(--accent)]">
                     {step.num}
                   </span>
                 </div>
