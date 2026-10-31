@@ -172,7 +172,7 @@ test('unconfirmed order notification can be reviewed without sending or overwrit
 test('request persists once and remains saved when notification fails', async () => {
   const db = await openDatabase(process.env.PC_LEASE_TEST_DATABASE_URL);
   try {
-    const { rows } = await db.query('SELECT slug,edit_version FROM products WHERE published = true LIMIT 1');
+    const { rows } = await db.query('SELECT slug,edit_version,details_json FROM products WHERE published = true LIMIT 1');
     const request = { id: randomUUID(), productSlug: rows[0].slug, productVersion: rows[0].edit_version, mode: 'lease', quantity: 3, companyName: 'Example', contactName: 'Example', email: 'test@example.invalid', phone: '123456' };
     const saved = await saveRequest(db, request);
     assert.equal(saved.created, true);
@@ -181,12 +181,12 @@ test('request persists once and remains saved when notification fails', async ()
     await assert.rejects(saveRequest(db, { ...request, quantity: 5 }), /request_conflict/);
     const result = await db.query('SELECT notification_status, tariff_snapshot_json FROM requests WHERE id = $1', [request.id]);
     assert.equal(result.rows[0].notification_status, 'failed');
-    assert.equal(result.rows[0].tariff_snapshot_json.price.totalAmountMinor, 29700);
+    assert.equal(result.rows[0].tariff_snapshot_json.price.totalAmountMinor, rows[0].details_json.leasePriceMonthly * 300);
     await db.query('UPDATE products SET edit_version=edit_version+1 WHERE slug=$1', [request.productSlug]);
     await assert.rejects(saveRequest(db, { ...request, id: randomUUID() }), /price_changed/);
     assert.equal((await saveRequest(db, request)).created, false);
     const still = await db.query('SELECT tariff_snapshot_json FROM requests WHERE id=$1', [request.id]);
-    assert.equal(still.rows[0].tariff_snapshot_json.price.totalAmountMinor, 29700);
+    assert.equal(still.rows[0].tariff_snapshot_json.price.totalAmountMinor, rows[0].details_json.leasePriceMonthly * 300);
     const admin=await register(db,`${randomUUID()}@example.invalid`,'test-password-123','admin');const oldSettings=await getOrderNotificationSettings(db);const newSettings=await saveOrderNotificationSettings(db,admin.id,{email:'orders@example.invalid',version:oldSettings.version});let sends=0;const mailer={send:async m=>{assert.equal(m.to,'orders@example.invalid');sends++;return {accepted:[m.to],rejected:[]};}};
     const attempts=await Promise.allSettled([retryRequestNotification(db,mailer,admin.id,request.id),retryRequestNotification(db,mailer,admin.id,request.id)]);assert.equal(sends,1);assert.equal(attempts.filter(a=>a.status==='fulfilled').length,1);assert.equal(attempts.find(a=>a.status==='rejected').reason.message,'not_retryable');
     assert.equal((await db.query('SELECT result FROM request_notification_attempts WHERE request_id=$1',[request.id])).rows[0].result,'sent');

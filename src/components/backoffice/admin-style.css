@@ -1,11 +1,11 @@
 /* Shared back-office treatment. Public site styles are intentionally unaffected. */
-.admin-sidebar > button {
+.admin-sidebar > button, .admin-sidebar > a {
   font-size: 0.875rem;
   line-height: 1.25;
   min-height: 3.5rem;
   border-radius: 0.875rem;
 }
-.admin-sidebar > button svg { width: 1.25rem; height: 1.25rem; }
+.admin-sidebar > button svg, .admin-sidebar > a svg { width: 1.25rem; height: 1.25rem; }
 .admin-sidebar > button > div { gap: 0.5rem; min-width: 0; }
 .admin-sidebar > button > div > span:first-child { overflow-wrap: anywhere; }
 .admin-sidebar > button > div > span:not(:first-child) { font-size: 0.875rem; line-height: 1.25; flex-shrink: 0; }

@@ -14,7 +14,7 @@ export function calculateQuote(lines, vatBasisPoints, { allowUnpriced = false } 
       price = calculatePrice(product, mode, quantity, rentalDays);
     } catch (error) {
       if (!allowUnpriced || error.message !== 'price_unavailable') throw error;
-      if (!['lease','purchase','short_rental'].includes(mode) || !Number.isInteger(quantity) || quantity < 1 || quantity > 1000 || (mode === 'short_rental' && (!Number.isInteger(rentalDays) || rentalDays < 1 || rentalDays > 365))) throw new Error('invalid_quote');
+      if (!['lease','purchase','short_rental'].includes(mode) || !Number.isInteger(quantity) || quantity < 1 || quantity > 1000 || (mode === 'short_rental' && (!Number.isInteger(rentalDays) || rentalDays < 7 || rentalDays > 365))) throw new Error('invalid_quote');
       return {productSlug:product.slug,productVersion:product.editVersion,mode,quantity,rentalDays:mode==='short_rental'?rentalDays:null,unitAmountMinor:null,period:mode==='lease'?'month':mode==='purchase'?'one_time':'rental_period',termMonths:mode==='lease'?36:null,periodTotalMinor:null,contractTotalMinor:null};
     }
     const totalMinor = mode === 'lease' ? null : price.totalAmountMinor;

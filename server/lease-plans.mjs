@@ -1,0 +1,25 @@
+import {requireTransactionPermission} from './transaction-permissions.mjs';
+const uuid=s=>typeof s==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+const text=(s,n)=>typeof s==='string'&&s.length<=n&&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(s);
+export async function listLeaseSettings(db){const plans=(await db.query('SELECT p.*,COALESCE(array_agg(pp.product_id) FILTER(WHERE pp.product_id IS NOT NULL),ARRAY[]::text[]) AS product_ids FROM lease_plans p LEFT JOIN lease_plan_products pp ON pp.plan_id=p.id GROUP BY p.id ORDER BY p.monthly_price,p.id')).rows;const addons=(await db.query('SELECT * FROM lease_addons ORDER BY id')).rows;const products=(await db.query('SELECT id,name,edit_version FROM products ORDER BY name,id')).rows;return {plans,addons,products};}
+export async function saveLeaseSettings(db,actor,input){
+ if(!input||!['plan','addon','create'].includes(input.kind)||typeof input.id!=='string'||!Number.isInteger(input.version)||input.version<(input.kind==='create'?0:1)||(input.kind==='create'&&(input.version!==0||!uuid(input.id))))throw Error('invalid_input');
+ const c=await db.connect();try{await c.query('BEGIN');await requireTransactionPermission(c,actor,'catalog');
+  if(input.kind==='plan'){
+   if(!text(input.name,100)||!input.name.trim()||!Number.isSafeInteger(input.price)||input.price<1||input.price>10000000||!text(input.he,2000)||!text(input.en,2000)||!Array.isArray(input.products)||input.products.length>200||input.products.some(x=>typeof x!=='string'||x.length>120)||new Set(input.products).size!==input.products.length||!input.productVersions||typeof input.productVersions!=='object'||input.products.some(id=>!Number.isInteger(input.productVersions[id])))throw Error('invalid_input');
+   const row=(await c.query('UPDATE lease_plans SET name=$1,monthly_price=$2,description_he=$3,description_en=$4,version=version+1 WHERE id=$5 AND version=$6 RETURNING id',[input.name.trim(),input.price,input.he.trim(),input.en.trim(),input.id,input.version])).rows[0];if(!row)throw Error('version_conflict');
+   if(input.products.length&&(await c.query('SELECT count(*)::int AS n FROM products WHERE id=ANY($1::text[])',[input.products])).rows[0].n!==input.products.length)throw Error('invalid_input');
+   const locked=input.products.length?(await c.query('SELECT id,details_json,published,edit_version FROM products WHERE id=ANY($1::text[]) ORDER BY id FOR UPDATE',[input.products])).rows:[];
+   if(locked.some(old=>old.edit_version!==input.productVersions[old.id]))throw Error('version_conflict');
+   if(input.products.length&&(await c.query('SELECT 1 FROM lease_plan_products WHERE product_id=ANY($1::text[]) AND plan_id<>$2 LIMIT 1',[input.products,input.id])).rowCount)throw Error('product_conflict');
+   const updated=[];
+   for(const old of locked){const id=old.id;if(old.details_json.leasePriceMonthly!==input.price){const next=(await c.query("UPDATE products SET details_json=jsonb_set(details_json,'{leasePriceMonthly}',to_jsonb($1::int)),edit_version=edit_version+1 WHERE id=$2 RETURNING details_json,published,edit_version",[input.price,id])).rows[0];const snap=x=>({...x.details_json,published:x.published,editVersion:x.edit_version});await c.query('INSERT INTO product_history(product_id,actor_user_id,previous_data,new_data) VALUES($1,$2,$3,$4)',[id,actor,JSON.stringify(snap(old)),JSON.stringify(snap(next))]);updated.push({id,edit_version:next.edit_version});}}
+   await c.query('DELETE FROM lease_plan_products WHERE plan_id=$1',[input.id]);for(const id of input.products)await c.query('INSERT INTO lease_plan_products(plan_id,product_id) VALUES($1,$2)',[input.id,id]);
+   await c.query('COMMIT');return {id:input.id,updated};
+  }else{
+   if(!['antivirus','office','insurance','screen','other'].includes(input.category)||!text(input.heName,200)||!input.heName.trim()||!text(input.enName,200)||!input.enName.trim()||!text(input.he,2000)||!text(input.en,2000)||!(input.price===null||Number.isSafeInteger(input.price)&&input.price>=0&&input.price<=10000000)||![null,'month','once'].includes(input.billing)||typeof input.active!=='boolean'||(input.active&&(input.price===null||input.billing===null||!input.he.trim()||!input.en.trim())))throw Error('invalid_input');
+   if(input.kind==='create'){await c.query('INSERT INTO lease_addons(id,category,name_he,name_en,terms_he,terms_en,price,billing,active) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',[input.id,input.category,input.heName.trim(),input.enName.trim(),input.he.trim(),input.en.trim(),input.price,input.billing,input.active]);}
+   else{const row=(await c.query('UPDATE lease_addons SET name_he=$1,name_en=$2,terms_he=$3,terms_en=$4,price=$5,billing=$6,active=$7,category=$10,version=version+1 WHERE id=$8 AND version=$9 RETURNING id',[input.heName.trim(),input.enName.trim(),input.he.trim(),input.en.trim(),input.price,input.billing,input.active,input.id,input.version,input.category])).rows[0];if(!row)throw Error('version_conflict');}
+  }await c.query('COMMIT');return {id:input.id};
+ }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}
+}

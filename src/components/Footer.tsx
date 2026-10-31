@@ -3,6 +3,7 @@ import { ArrowUp } from 'lucide-react';
 import { Language, Theme } from '../types';
 import { TRANSLATIONS } from '../data/translations';
 import { sectionDefaults } from '../data/section-defaults.mjs';
+import { BrandLogo } from './BrandLogo';
 
 interface FooterProps {
   lang: Language;
@@ -13,7 +14,7 @@ interface FooterProps {
 }
 
 export const Footer: React.FC<FooterProps> = ({ lang, theme, content = sectionDefaults.footer, navigation = sectionDefaults.navigation, contactAvailable = false }) => {
-  const nav = (key: 'models'|'calculator'|'story'|'catalog'|'faq'|'contact') => navigation[`${key}${lang === 'he' ? 'He' : 'En'}`];
+  const nav = (key: 'models'|'calculator'|'story'|'catalog'|'faq'|'about'|'contact') => navigation[`${key}${lang === 'he' ? 'He' : 'En'}`];
   if (!content.visible) return null;
 
   const scrollToTop = () => {
@@ -21,20 +22,12 @@ export const Footer: React.FC<FooterProps> = ({ lang, theme, content = sectionDe
   };
 
   return (
-    <footer className="py-12 bg-[var(--bg-page)] border-t border-[var(--border-line)] text-xs text-[var(--text-secondary)]">
+    <footer className="brand-wash brand-wash-violet py-12 bg-[var(--bg-page)] border-t border-[var(--border-line)] text-xs text-[var(--text-secondary)]">
       <div className="max-w-[1504px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-[var(--border-subtle)]">
           {/* Brand & Tagline */}
           <div className="flex items-center gap-3">
-            <img
-              src={theme === 'dark' ? '/brand/pc-lease-logo-on-dark.svg' : '/brand/pc-lease-logo.svg'}
-              alt="PC-LEASE"
-              className="h-6 w-auto object-contain"
-              onError={(e) => {
-                const target = e.target as HTMLElement;
-                target.style.display = 'none';
-              }}
-            />
+            <BrandLogo theme={theme} className="w-[145px]" />
             <span className="font-bold text-sm text-[var(--text-primary)]">
               {lang === 'he' ? content.taglineHe : content.taglineEn}
             </span>
@@ -57,6 +50,7 @@ export const Footer: React.FC<FooterProps> = ({ lang, theme, content = sectionDe
             <a href="/#faq" className="hover:text-[var(--text-primary)] transition-colors">
               {nav('faq')}
             </a>
+            <a href="/about" className="hover:text-[var(--text-primary)] transition-colors">{nav('about')}</a>
             {content.showContact&&contactAvailable&&<a href="/contact" className="hover:text-[var(--text-primary)] transition-colors">{nav('contact')}</a>}
 
           </div>

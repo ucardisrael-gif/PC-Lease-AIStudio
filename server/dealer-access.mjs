@@ -1,5 +1,8 @@
 import {requireTransactionAdmin,requireLiveSession} from './transaction-permissions.mjs';
 const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+// An explicitly assigned client or company takes precedence over a stale order assignment.
+const visibleOrder=`NOT EXISTS(SELECT 1 FROM users owner WHERE owner.id=requests.customer_user_id AND owner.client_dealer_id IS NOT NULL AND owner.client_dealer_id<>$1)
+ AND NOT EXISTS(SELECT 1 FROM organizations owner WHERE owner.id=requests.organization_id AND owner.client_dealer_id IS NOT NULL AND owner.client_dealer_id<>$1)`;
 
 export async function getDealerAccess(db,userId){
  if(!uuid(userId))throw Error('invalid_input');
@@ -28,17 +31,28 @@ export async function listOwnDealerOrders(db,userId,params,kind='orders'){
   await c.query('BEGIN');const u=(await c.query('SELECT active FROM users WHERE id=$1 FOR SHARE',[userId])).rows[0];if(!u?.active)throw Error('forbidden');await requireLiveSession(c,userId);
   const link=(await c.query('SELECT d.id,d.name FROM dealer_user_access a JOIN dealers d ON d.id=a.dealer_id WHERE a.user_id=$1 AND d.active=true FOR SHARE OF a,d',[userId])).rows[0];if(!link)throw Error('forbidden');
   if(kind==='clients'){
-   const rows=(await c.query(`SELECT contact_json->>'companyName' AS company,contact_json->>'contactName' AS contact,contact_json->>'email' AS email,contact_json->>'phone' AS phone,count(*)::int AS orders_count,max(created_at) AS latest_order
-     FROM requests WHERE dealer_id=$1 GROUP BY 1,2,3,4 ORDER BY max(created_at) DESC,1,2,3,4 LIMIT 21 OFFSET $2`,[link.id,Number(offset)])).rows;
+   const rows=(await c.query(`SELECT * FROM (
+     SELECT 'user'::text AS source,u.company_name AS company,trim(concat_ws(' ',u.first_name,u.last_name)) AS contact,u.email,u.phone,NULL::int AS orders_count,u.created_at AS activity,u.id AS stable_id
+       FROM users u WHERE u.client_dealer_id=$1 AND u.role='customer' AND u.active=true
+       AND NOT EXISTS(SELECT 1 FROM staff_permissions p WHERE p.user_id=u.id)
+       AND NOT EXISTS(SELECT 1 FROM access_role_assignments a WHERE a.user_id=u.id)
+       AND NOT EXISTS(SELECT 1 FROM dealer_user_access a WHERE a.user_id=u.id)
+     UNION ALL
+     SELECT 'organization',o.name,o.contact_name,o.email,o.phone,NULL::int,o.created_at,o.id
+       FROM organizations o WHERE o.client_dealer_id=$1
+     UNION ALL
+     SELECT 'order',contact_json->>'companyName',contact_json->>'contactName',contact_json->>'email',contact_json->>'phone',count(*)::int,max(created_at),min(id)
+       FROM requests WHERE dealer_id=$1 AND ${visibleOrder} GROUP BY contact_json->>'companyName',contact_json->>'contactName',contact_json->>'email',contact_json->>'phone'
+     ) clients ORDER BY activity DESC,source,stable_id LIMIT 21 OFFSET $2`,[link.id,Number(offset)])).rows;
    await c.query('COMMIT');return {dealer:link,clients:rows.slice(0,20),hasMore:rows.length>20,offset:Number(offset)};
   }
-  if(before&&!(await c.query('SELECT 1 FROM requests WHERE id=$1 AND dealer_id=$2',[before,link.id])).rowCount)throw Error('invalid_input');
+  if(before&&!(await c.query(`SELECT 1 FROM requests WHERE dealer_id=$1 AND id=$2 AND ${visibleOrder}`,[link.id,before])).rowCount)throw Error('invalid_input');
   const result=await c.query(`SELECT id,order_number,status,created_at,quantity,
     contact_json->>'companyName' AS company,contact_json->>'contactName' AS contact,
     contact_json->>'email' AS email,contact_json->>'phone' AS phone,
     product_snapshot_json->>'model' AS model,
     product_snapshot_json->'quoteProducts' AS products,tariff_snapshot_json->'quote'->'items' AS items
-    FROM requests WHERE dealer_id=$1 AND ($2::text='' OR (created_at,id)<(SELECT created_at,id FROM requests WHERE id=$2 AND dealer_id=$1)) ORDER BY created_at DESC,id DESC LIMIT 21`,[link.id,before]);
+    FROM requests WHERE dealer_id=$1 AND ${visibleOrder} AND ($2::text='' OR (created_at,id)<(SELECT created_at,id FROM requests WHERE id=$2 AND dealer_id=$1)) ORDER BY created_at DESC,id DESC LIMIT 21`,[link.id,before]);
   const orders=result.rows.slice(0,20).map(row=>({...row,
     products:Array.isArray(row.products)?row.products.map(p=>({model:p.model,sku:p.sku})):[],
     items:Array.isArray(row.items)?row.items.map(i=>({mode:i.mode,quantity:i.quantity,rentalDays:i.rentalDays,termMonths:i.termMonths,period:i.period,unitAmountMinor:i.unitAmountMinor,periodTotalMinor:i.periodTotalMinor})):[]}));

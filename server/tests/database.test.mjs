@@ -51,7 +51,7 @@ test('upgrade from migration 33 preserves existing records and creates history p
   assert.deepEqual((await upgraded.query('SELECT name,details_json,published FROM products WHERE id=$1',['test-product'])).rows[0],{name:'Before upgrade',details_json:{model:'Before upgrade',purchasePrice:1234},published:true});
   assert.equal((await upgraded.query("SELECT name FROM organizations WHERE id='test-company'")).rows[0].name,'Before upgrade');
   assert.equal((await upgraded.query("SELECT serial_number FROM inventory_assets WHERE id='test-asset'")).rows[0].serial_number,'test-serial');
-  assert.equal((await upgraded.query('SELECT max(version)::integer AS version FROM schema_migrations')).rows[0].version,74);
+  assert.equal((await upgraded.query('SELECT max(version)::integer AS version FROM schema_migrations')).rows[0].version,87);
   assert.equal((await upgraded.query("SELECT amount_minor FROM financial_entries WHERE id='finance-old-reversal'")).rows[0].amount_minor,200);
   const oldReservation=(await upgraded.query("SELECT asset_id,request_id,serial_at_reservation FROM asset_reservations WHERE id='reservation-old'")).rows[0];assert.deepEqual(oldReservation,{asset_id:'test-asset',request_id:'finance-old',serial_at_reservation:null});
   const oldTicket=(await upgraded.query("SELECT asset_id,reservation_id FROM service_tickets WHERE id='ticket-old'")).rows[0];assert.deepEqual(oldTicket,{asset_id:'test-asset',reservation_id:'reservation-old'});await upgraded.query("UPDATE service_tickets SET description='Updated description' WHERE id='ticket-old'");await assert.rejects(upgraded.query("UPDATE service_tickets SET reservation_id=NULL WHERE id='ticket-old'"),/service ticket identity cannot be changed/);const oldReplacement=(await upgraded.query("SELECT ticket_id,asset_id,issue_notes,serial_at_issue FROM service_replacements WHERE id='replacement-record-old'")).rows[0];assert.deepEqual(oldReplacement,{ticket_id:'ticket-old',asset_id:'replacement-old',issue_notes:'Old issue',serial_at_issue:null});
@@ -75,7 +75,7 @@ test('upgrade from migration 7 preserves existing products and orders',async()=>
   const url=new URL(base);url.searchParams.set('options',`-c search_path=${schema}`);upgraded=await openDatabase(url.toString());
   assert.deepEqual((await upgraded.query("SELECT details_json FROM products WHERE id='old-product'")).rows[0].details_json,product);
   const order=(await upgraded.query("SELECT product_snapshot_json,tariff_snapshot_json,contact_json FROM requests WHERE id='old-order'")).rows[0];assert.deepEqual(order,{product_snapshot_json:product,tariff_snapshot_json:{amount:1234},contact_json:{companyName:'Test company'}});
-  assert.equal((await upgraded.query('SELECT max(version)::integer AS version FROM schema_migrations')).rows[0].version,74);
+  assert.equal((await upgraded.query('SELECT max(version)::integer AS version FROM schema_migrations')).rows[0].version,87);
   await assert.rejects(upgraded.query("UPDATE requests SET tariff_snapshot_json='{}'::jsonb WHERE id='old-order'"),/request commercial snapshot cannot be changed/);
   assert.equal((await upgraded.query("UPDATE requests SET status='reviewed' WHERE id='old-order' RETURNING status")).rows[0].status,'reviewed');
  }finally{if(upgraded)await upgraded.end();await admin.query('SET search_path TO public');await admin.query(`DROP SCHEMA "${schema}" CASCADE`);await admin.end();}

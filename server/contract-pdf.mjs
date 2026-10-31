@@ -1,10 +1,8 @@
 import PDFDocument from 'pdfkit';
-import SVGtoPDF from 'svg-to-pdfkit';
+import {drawBrandLogo} from './brand-logo.mjs';
 import bidiFactory from 'bidi-js';
-import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 const font=fileURLToPath(new URL('./fonts/Alef-Regular.ttf',import.meta.url));
-const logo=readFileSync(new URL('../public/brand/pc-lease-logo.svg',import.meta.url),'utf8');
 const bidi=bidiFactory();
 export function contractOrderLines(order,lang='he'){
  const he=lang==='he',quoteItems=order?.terms?.quote?.items;
@@ -49,7 +47,7 @@ export async function renderContractDraft(record,lang='he'){
    if(current)line(current,size,color,right);
   }
  }
- SVGtoPDF(doc,logo,left,y,{width:145,height:32});y+=48;
+ drawBrandLogo(doc,left,y,120);y+=48;
  paragraph(he?'טיוטה פנימית — לא חתום':'INTERNAL DRAFT — NOT SIGNED',15,'#b42318',he);
  paragraph(record.title|| (he?'טיוטת חוזה':'Contract draft'),14,'#1559d7',he);
  function detail(label,value){

@@ -26,7 +26,7 @@ export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang, content = sect
 
   if (!content.visible) return null;
   return (
-    <section id="story" className="py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-surface)]">
+    <section id="story" className="brand-wash brand-wash-amber py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-surface)]">
       <div className="max-w-[1504px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-14">
@@ -50,7 +50,7 @@ export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang, content = sect
                 key={step.num}
                 type="button"
                 onClick={() => setActiveStep(idx)}
-                className={`p-5 rounded-xl border text-start transition-all duration-200 flex flex-col justify-between space-y-4 ${
+                className={`brand-card p-5 rounded-xl border text-start transition-all duration-200 flex flex-col justify-between space-y-4 ${
                   isActive
                     ? 'bg-[var(--bg-page)] border-[var(--accent)] shadow-md ring-1 ring-[var(--accent)]/30'
                     : 'bg-[var(--bg-surface)] border-[var(--border-line)] hover:border-[var(--text-secondary)]'
@@ -90,28 +90,6 @@ export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang, content = sect
               </button>
             );
           })}
-        </div>
-
-        {/* Dynamic Context Details Panel */}
-        <div className="rounded-xl bg-[var(--bg-page)] border border-[var(--border-line)] p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-2">
-            <span className="text-xs uppercase font-bold tracking-wider text-[var(--accent)]">
-              {lang === 'he' ? `שלב ${steps[activeStep].num} בתהליך` : `Step ${steps[activeStep].num}`}
-            </span>
-            <h3 className="text-xl font-bold text-[var(--text-primary)]">
-              {steps[activeStep].title}
-            </h3>
-            <p className="text-sm text-[var(--text-secondary)] max-w-2xl leading-relaxed">
-              {steps[activeStep].desc} {v('detail')}
-            </p>
-          </div>
-
-          <a
-            href="#calculator"
-            className="whitespace-nowrap px-6 py-3 text-xs sm:text-sm font-bold text-white bg-[var(--accent)] hover:bg-[var(--accent-hover)] rounded-md shadow transition-colors"
-          >
-            {v('cta')}
-          </a>
         </div>
       </div>
     </section>

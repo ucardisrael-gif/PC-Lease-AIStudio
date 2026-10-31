@@ -12,6 +12,9 @@ interface CheckoutModalProps {
   mode: AcquisitionMode;
   quantity: number;
   rentalDays?: number;
+  initialPlanId?: string;
+  initialAddonId?: string;
+  initialLines?: {productSlug:string; productVersion?:number; mode:AcquisitionMode; quantity:number; rentalDays:number}[];
   onPendingChange: (order:PendingOrder|null)=>void;
   onClose: () => void;
 }
@@ -24,6 +27,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   mode,
   quantity,
   rentalDays = 30,
+  initialPlanId = '',
+  initialAddonId = '',
+  initialLines,
   onPendingChange,
   onClose,
 }) => {
@@ -43,11 +49,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [priceChanged, setPriceChanged] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState<string | null>(null);
   const requestId = useRef<string | null>(null);
-  const [lines, setLines] = useState(() => [{ productSlug: product.slug, productVersion: product.editVersion, mode: mode === 'lease' && product.leaseTermMonths !== 36 ? 'short_rental' as AcquisitionMode : mode, quantity, rentalDays }]);
-  type Preview = { totalMinor: number | null; items: { periodTotalMinor: number | null; contractTotalMinor: number | null; period: string; termMonths: number | null }[] };
+  const [lines, setLines] = useState(() => initialLines?.length ? initialLines : [{ productSlug: product.slug, productVersion: product.editVersion, mode: mode === 'lease' && product.leaseTermMonths !== 36 ? 'short_rental' as AcquisitionMode : mode, quantity, rentalDays }]);
+  const [addingModel,setAddingModel]=useState(false);
+  type Plan={id:string;name:string;version:number;monthly_price:number;description_he:string;description_en:string;productSlugs:string[]};
+  type Addon={id:string;version:number;name_he:string;name_en:string;terms_he:string;terms_en:string;price:number;billing:'month'|'once'};
+  const [options,setOptions]=useState<{plans:Plan[];addons:Addon[]}|null>(null),[planId,setPlanId]=useState(initialPlanId),[selectedAddons,setSelectedAddons]=useState<{id:string;version:number;quantity:number}[]>([]);
+  useEffect(()=>{const c=new AbortController();fetch('/api/lease-options',{signal:c.signal}).then(r=>r.ok?r.json():Promise.reject()).then(setOptions).catch(()=>{});return()=>c.abort();},[]);
+  const selectedPlan=options?.plans.find(p=>p.id===planId);
+  const initialAddonApplied=useRef(false);
+  useEffect(()=>{if(initialAddonApplied.current||!selectedPlan||!options||!initialAddonId)return;initialAddonApplied.current=true;const addon=options.addons.find(a=>a.id===initialAddonId);if(addon)setSelectedAddons([{id:addon.id,version:addon.version,quantity:1}]);},[initialAddonId,options,selectedPlan]);
+  const selection=selectedPlan?{planId:selectedPlan.id,planVersion:selectedPlan.version,addons:selectedAddons}:undefined;
+  type Preview = { totalMinor: number | null; monthlyMinor?:number|null;oneTimeMinor?:number;items: { periodTotalMinor: number | null; contractTotalMinor: number | null; period: string; termMonths: number | null }[] };
   const [previewState, setPreviewState] = useState<{key:string;data:Preview}|null>(null);
   const [previewFailure, setPreviewFailure] = useState<{key:string;error:string}|null>(null);
-  const linesKey=JSON.stringify(lines);
+  const linesKey=JSON.stringify({lines,selection});
   const preview=previewState?.key===linesKey?previewState.data:null;
   const previewError=previewFailure?.key===linesKey?previewFailure.error:'';
   const [pdfData, setPdfData] = useState<string | null>(null);
@@ -60,11 +75,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   useEffect(() => {
     const controller = new AbortController();
     setPreviewState(null); setPreviewFailure(null);
-    fetch('/api/quote/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines }), signal: controller.signal })
+    if (planId && !selectedPlan) return () => controller.abort();
+    fetch(selection?'/api/lease-selection/preview':'/api/quote/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(selection?{...selection,lines}:{lines}), signal: controller.signal })
       .then(async r => { const data = await r.json(); if (!r.ok) throw Error(data.error || 'unavailable'); return data; })
-      .then(data => { if (!controller.signal.aborted) setPreviewState({key:linesKey,data}); }).catch(error => { if (!controller.signal.aborted) setPreviewFailure({key:linesKey,error:error.message || 'unavailable'}); });
+      .then(data => { if (!controller.signal.aborted) setPreviewState({key:linesKey,data:selection?{...data.quote,monthlyMinor:data.monthlyMinor,oneTimeMinor:data.oneTimeMinor}:data}); }).catch(error => { if (!controller.signal.aborted) setPreviewFailure({key:linesKey,error:error.message || 'unavailable'}); });
     return () => controller.abort();
-  }, [lines]);
+  }, [linesKey]);
 
   useEffect(() => {
     if (!isSubmitting && !submitUncertain) return;
@@ -84,11 +100,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting || offerStatus === 'busy' || !preview || !companyName.trim() || !contactName.trim() || !email.trim() || !phone.trim()) return;
+    if (addingModel || isSubmitting || offerStatus === 'busy' || (planId && !selectedPlan) || !preview || !companyName.trim() || !contactName.trim() || !email.trim() || !phone.trim()) return;
     const id = requestId.current ?? crypto.randomUUID();
     requestId.current = id;
     if(lines.some(line=>!Number.isInteger(line.productVersion)||!line.productVersion))return;
-    const attempt:PendingOrder={id,lines:lines.map(line=>({...line,productVersion:line.productVersion!})),lang,source:'website',companyName,contactName,email,phone,taxId,city,notes};
+    const attempt:PendingOrder={id,lines:lines.map(line=>({...line,productVersion:line.productVersion!})),lang,source:'website',companyName,contactName,email,phone,taxId,city,notes,...(selection?{leaseSelection:selection}:{})};
     try{writePendingOrder(attempt);}catch{setStorageError(true);return;}
     onPendingChange(attempt);setStorageError(false);setIsSubmitting(true);setSubmitError(false);
     try {
@@ -142,7 +158,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if(kind==='email'){try{sessionStorage.setItem(offerMarker,'1');setOfferStorageError(false);}catch{setOfferStorageError(true);return;}}
     setOfferStatus('busy');
     try {
-      const response = await fetch(`/api/offer/${kind}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines, lang, contact: { companyName: companyName.trim(), contactName: contactName.trim(), email: recipient, phone: phone.trim(), taxId: taxId.trim(), city: city.trim() } }) });
+      const response = await fetch(`/api/offer/${kind}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines, lang, ...(selection?{leaseSelection:selection}:{}),contact: { companyName: companyName.trim(), contactName: contactName.trim(), email: recipient, phone: phone.trim(), taxId: taxId.trim(), city: city.trim() } }) });
       if (!response.ok) {
         const body=await response.json().catch(()=>({}));
         if(['mail_unavailable','invalid_input','invalid_contact','invalid_quote','invalid_price','price_unavailable','price_changed','product_unavailable','invalid_email','forbidden','rate_limit'].includes(body.error)){if(kind==='email')sessionStorage.removeItem(offerMarker);throw new Error('offer_failed');}
@@ -227,19 +243,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </p>
             </div>
 
+            {options&&<section className="space-y-3 rounded-xl border border-[var(--border-line)] p-4"><h3 className="font-bold">{lang==='he'?'בחירה לפי מסלול ליסינג':'Choose a lease plan'}</h3><div className="flex flex-wrap gap-2">{options.plans.map(p=><button type="button" key={p.id} aria-pressed={planId===p.id} className={`rounded-xl border px-4 py-3 ${planId===p.id?'bg-blue-600 text-white':''}`} onClick={()=>{const available=products.filter(x=>p.productSlugs.includes(x.slug)&&x.leaseTermMonths===36);if(!available.length)return;if((lines.length>1||!p.productSlugs.includes(lines[0].productSlug)||lines[0].mode!=='lease')&&!window.confirm(lang==='he'?'בחירת המסלול תחליף את המחשבים בבקשה. להמשיך?':'Selecting this plan replaces the computers in the request. Continue?'))return;const next=available.find(x=>x.slug===lines[0].productSlug)||available[0];setLines([{productSlug:next.slug,productVersion:next.editVersion,mode:'lease',quantity:lines.length===1?lines[0].quantity:1,rentalDays:30}]);setSelectedAddons([]);setPlanId(p.id);}} disabled={!products.some(x=>p.productSlugs.includes(x.slug)&&x.leaseTermMonths===36)}><bdi>{p.name}</bdi> · ₪{p.monthly_price}/{lang==='he'?'חודש':'month'}</button>)}{planId&&<button type="button" className="underline" onClick={()=>{setPlanId('');setSelectedAddons([]);}}>{lang==='he'?'ביטול בחירת מסלול':'Clear plan selection'}</button>}</div>{selectedPlan&&<p className="text-sm whitespace-pre-wrap">{lang==='he'?selectedPlan.description_he:selectedPlan.description_en}</p>}</section>}
             <div className="space-y-3 rounded-xl border border-[var(--border-line)] p-4">
               <h3 className="font-bold">{lang === 'he' ? 'מחשבים בבקשה' : 'Computers in this request'}</h3>
               {lines.map((line, index) => <div key={index} className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                <label className="col-span-2">{lang === 'he' ? 'דגם' : 'Model'}<select value={line.productSlug} onChange={e => { const p = products.find(x => x.slug === e.target.value); if (p) setLines(rows => rows.map((r, i) => i === index ? { ...r, productSlug: p.slug, productVersion: p.editVersion, mode: r.mode === 'lease' && p.leaseTermMonths !== 36 ? 'short_rental' : r.mode } : r)); }} className="w-full p-2 rounded border border-[var(--border-line)] bg-[var(--bg-page)]">{products.map(p => <option key={p.id} value={p.slug}>{p.title[lang]}</option>)}</select></label>
-                <label>{lang === 'he' ? 'מסלול' : 'Plan'}<select value={line.mode} onChange={e => setLines(rows => rows.map((r, i) => i === index ? { ...r, mode: e.target.value as AcquisitionMode } : r))} className="w-full p-2 rounded border border-[var(--border-line)] bg-[var(--bg-page)]"><option value="lease" disabled={products.find(p=>p.slug===line.productSlug)?.leaseTermMonths !== 36}>{lang === 'he' ? 'ליסינג' : 'Lease'}</option><option value="short_rental">{lang === 'he' ? 'השכרה' : 'Rental'}</option><option value="purchase">{lang === 'he' ? 'רכישה' : 'Purchase'}</option></select></label>
+                <label className="col-span-2">{lang === 'he' ? 'דגם' : 'Model'}<select value={line.productSlug} onChange={e => { const p = products.find(x => x.slug === e.target.value); if (p) setLines(rows => rows.map((r, i) => i === index ? { ...r, productSlug: p.slug, productVersion: p.editVersion, mode: r.mode === 'lease' && p.leaseTermMonths !== 36 ? 'short_rental' : r.mode } : r)); }} className="w-full p-2 rounded border border-[var(--border-line)] bg-[var(--bg-page)]">{products.filter(p=>!selectedPlan||(p.leaseTermMonths===36&&selectedPlan.productSlugs.includes(p.slug))).map(p => <option key={p.id} value={p.slug}>{p.title[lang]}</option>)}</select></label>
+                <label>{lang === 'he' ? 'מסלול' : 'Plan'}<select disabled={!!selectedPlan} value={line.mode} onChange={e => setLines(rows => rows.map((r, i) => i === index ? { ...r, mode: e.target.value as AcquisitionMode } : r))} className="w-full p-2 rounded border border-[var(--border-line)] bg-[var(--bg-page)]"><option value="lease" disabled={products.find(p=>p.slug===line.productSlug)?.leaseTermMonths !== 36}>{lang === 'he' ? 'ליסינג' : 'Lease'}</option><option value="short_rental">{lang === 'he' ? 'השכרה' : 'Rental'}</option></select></label>
                 <label>{lang === 'he' ? 'כמות' : 'Quantity'}<input type="number" min="1" max="1000" required value={line.quantity || ''} onChange={e => setLines(rows => rows.map((r, i) => i === index ? { ...r, quantity: Number(e.target.value) } : r))} className="w-full p-2 rounded border border-[var(--border-line)] bg-[var(--bg-page)]" /></label>
-                {line.mode === 'short_rental' && <label>{lang === 'he' ? 'ימים' : 'Days'}<input type="number" min="1" max="365" required value={line.rentalDays || ''} onChange={e => setLines(rows => rows.map((r, i) => i === index ? { ...r, rentalDays: Number(e.target.value) } : r))} className="w-full p-2 rounded border border-[var(--border-line)] bg-[var(--bg-page)]" /></label>}
+                {line.mode === 'short_rental' && <label>{lang === 'he' ? 'ימים' : 'Days'}<input type="number" min="7" max="365" required value={line.rentalDays || ''} onChange={e => setLines(rows => rows.map((r, i) => i === index ? { ...r, rentalDays: Number(e.target.value) } : r))} className="w-full p-2 rounded border border-[var(--border-line)] bg-[var(--bg-page)]" /></label>}
                 <div className="col-span-2 flex items-end gap-3"><span>{preview?.items[index] && `${displayAmount(preview.items[index].periodTotalMinor)}${line.mode === 'lease' && preview.items[index].periodTotalMinor !== null ? (lang === 'he' ? ' / חודש' : ' / month') : ''}`}</span>{lines.length > 1 && <button type="button" className="underline text-red-500" onClick={() => setLines(rows => rows.filter((_, i) => i !== index))}>{lang === 'he' ? 'הסר' : 'Remove'}</button>}</div>
               </div>)}
-              <button type="button" disabled={lines.length >= 25} className="underline text-sky-600" onClick={() => { const p = products.find(x => !lines.some(l => l.productSlug === x.slug)) || products[0]; if (p) setLines(rows => [...rows, { productSlug: p.slug, productVersion: p.editVersion, mode: p.leaseTermMonths === 36 ? 'lease' : 'short_rental', quantity: 1, rentalDays: 30 }]); }}>{lang === 'he' ? '+ הוספת דגם' : '+ Add model'}</button>
-              {preview ? <div className="font-bold space-y-1">{lines.some(l => l.mode === 'lease') && <p>{lang === 'he' ? 'סה״כ חודשי לליסינג' : 'Monthly lease total'}: {displayAmount(groupAmount('lease'))}</p>}{lines.some(l => l.mode === 'purchase') && <p>{lang === 'he' ? 'סה״כ רכישה' : 'Purchase total'}: {displayAmount(groupAmount('purchase'))}</p>}{[...new Set(lines.filter(l => l.mode === 'short_rental').map(l => l.rentalDays))].map(days => <p key={days}>{lang === 'he' ? `סה״כ השכרה ל־${days} ימים` : `Rental total (${days} days)`}: {displayAmount(groupAmount('short_rental', days))}</p>)}</div> : <p role="status">{previewError === 'price_unavailable' ? (lang === 'he' ? 'התעריף לא נשמר עבור אחד המסלולים. יש לעדכן אותו בניהול המוצרים.' : 'A rate for one of the selected plans has not been saved. Please update it in product administration.') : previewError ? (lang === 'he' ? 'לא ניתן לחשב; בדקו את הערכים או רעננו את הדף.' : 'Unable to calculate; check the values or refresh the page.') : (lang === 'he' ? 'מחשב מחיר…' : 'Calculating…')}</p>}
+              {!addingModel ? <button type="button" disabled={lines.length >= 25 || !products.some(p=>!lines.some(l=>l.productSlug===p.slug)&&(!selectedPlan||(p.leaseTermMonths===36&&selectedPlan.productSlugs.includes(p.slug))))} className="underline text-sky-600 disabled:opacity-40" onClick={()=>setAddingModel(true)}>{lang==='he'?'+ הוספת דגם':'+ Add model'}</button> : <label className="block text-sm">{lang==='he'?'בחרו דגם נוסף':'Choose another model'}<select aria-label={lang==='he'?'בחרו דגם נוסף':'Choose another model'} value="" onChange={e=>{const p=products.find(x=>x.slug===e.target.value);if(!p)return;setLines(old=>[...old,{productSlug:p.slug,productVersion:p.editVersion,mode:p.leaseTermMonths===36?old[0].mode:'short_rental',quantity:1,rentalDays:old[0].rentalDays||30}]);setAddingModel(false);}} className="block w-full rounded border border-[var(--border-line)] bg-[var(--bg-page)] p-2"><option value="" disabled>{lang==='he'?'בחרו דגם':'Select a model'}</option>{products.filter(p=>!lines.some(l=>l.productSlug===p.slug)&&(!selectedPlan||(p.leaseTermMonths===36&&selectedPlan.productSlugs.includes(p.slug)))).map(p=><option key={p.slug} value={p.slug}>{p.title[lang]}</option>)}</select><button type="button" className="underline" onClick={()=>setAddingModel(false)}>{lang==='he'?'ביטול':'Cancel'}</button></label>}
+              {preview ? <div className="font-bold space-y-1">{lines.some(l => l.mode === 'lease') && <p>{lang === 'he' ? 'סה״כ חודשי לליסינג' : 'Monthly lease total'}: {displayAmount(selectedPlan?(preview.monthlyMinor??null):groupAmount('lease'))}</p>}{lines.some(l => l.mode === 'purchase') && <p>{lang === 'he' ? 'סה״כ רכישה' : 'Purchase total'}: {displayAmount(groupAmount('purchase'))}</p>}{[...new Set(lines.filter(l => l.mode === 'short_rental').map(l => l.rentalDays))].map(days => <p key={days}>{lang === 'he' ? `סה״כ השכרה ל־${days} ימים` : `Rental total (${days} days)`}: {displayAmount(groupAmount('short_rental', days))}</p>)}</div> : <p role="status">{previewError === 'price_unavailable' ? (lang === 'he' ? 'התעריף לא נשמר עבור אחד המסלולים. יש לעדכן אותו בניהול המוצרים.' : 'A rate for one of the selected plans has not been saved. Please update it in product administration.') : previewError ? (lang === 'he' ? 'לא ניתן לחשב; בדקו את הערכים או רעננו את הדף.' : 'Unable to calculate; check the values or refresh the page.') : (lang === 'he' ? 'מחשב מחיר…' : 'Calculating…')}</p>}
             </div>
 
+            {selectedPlan&&options&&options.addons.length>0&&<section className="space-y-3 rounded-xl border border-[var(--border-line)] p-4"><h3 className="font-bold">{lang==='he'?'מוצרים ושירותים נוספים':'Optional products and services'}</h3>{options.addons.map(a=>{const selected=selectedAddons.find(x=>x.id===a.id);return <div key={a.id} className="rounded-xl border border-[var(--border-line)] p-3"><label className="flex gap-2 items-center"><input type="checkbox" checked={!!selected} onChange={e=>setSelectedAddons(old=>e.target.checked?[...old,{id:a.id,version:a.version,quantity:1}]:old.filter(x=>x.id!==a.id))}/><strong>{lang==='he'?a.name_he:a.name_en}</strong> · ₪{a.price}/{a.billing==='month'?(lang==='he'?'חודש':'month'):(lang==='he'?'חד פעמי':'one time')}</label><p className="text-sm whitespace-pre-wrap text-[var(--text-secondary)]">{lang==='he'?a.terms_he:a.terms_en}</p>{selected&&<label>{lang==='he'?'כמות':'Quantity'} <input className="w-20 rounded border p-1" type="number" min="1" max="1000" value={selected.quantity||''} required onChange={e=>setSelectedAddons(old=>old.map(x=>x.id===a.id?{...x,quantity:Number(e.target.value)}:x))}/></label>}</div>})}{preview&&!!preview.oneTimeMinor&&<p className="font-bold">{lang==='he'?'תוספות חד פעמיות':'One-time extras'}: {displayAmount(preview.oneTimeMinor)}</p>}</section>}
             {/* Customer Details Form */}
             <div className="space-y-4">
               <h3 className="font-bold">{lang === 'he' ? 'פרטי הלקוח' : 'Your details'}</h3>
@@ -348,8 +366,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <div className="space-y-3 rounded-xl border border-[var(--border-line)] p-4">
               <h3 className="font-bold">{lang === 'he' ? 'שמירת הצעת מחיר' : 'Keep a price estimate'}</h3>
               <p className="text-xs text-[var(--text-secondary)]">{lang === 'he' ? 'הורדה או שליחה של ההצעה אינה יוצרת הזמנה.' : 'Downloading or emailing an estimate does not place an order.'}</p>
-              <button type="button" disabled={!preview || offerStatus === 'busy'} onClick={() => getOffer('pdf')} className="px-4 py-2 rounded-lg border border-sky-500 text-sky-600 font-semibold">{lang === 'he' ? 'הורדת הצעה כ-PDF' : 'Download estimate PDF'}</button>
-              <button type="button" disabled={!preview || offerStatus === 'busy' || offerUncertain} onClick={() => getOffer('email')} className="px-4 py-2 rounded-lg border border-sky-500 text-sky-600 font-semibold">{offerStatus === 'busy' ? (lang === 'he' ? 'שולח…' : 'Sending…') : (lang === 'he' ? 'שליחת ההצעה אליי' : 'Email me the estimate')}</button>
+              <button type="button" disabled={addingModel || !preview || offerStatus === 'busy'} onClick={() => getOffer('pdf')} className="px-4 py-2 rounded-lg border border-sky-500 text-sky-600 font-semibold">{lang === 'he' ? 'הורדת הצעה כ-PDF' : 'Download estimate PDF'}</button>
+              <button type="button" disabled={addingModel || !preview || offerStatus === 'busy' || offerUncertain} onClick={() => getOffer('email')} className="px-4 py-2 rounded-lg border border-sky-500 text-sky-600 font-semibold">{offerStatus === 'busy' ? (lang === 'he' ? 'שולח…' : 'Sending…') : (lang === 'he' ? 'שליחת ההצעה אליי' : 'Email me the estimate')}</button>
               {offerStatus === 'sent' && <p role="status" className="text-sm text-emerald-600">{lang === 'he' ? 'ההצעה נשלחה לדוא״ל.' : 'The estimate was sent to your email.'}</p>}
               {offerStatus === 'invalid_email' && <p role="alert" className="text-sm text-red-600">{lang === 'he' ? 'יש להזין כתובת דוא״ל תקינה.' : 'Enter a valid email address.'}</p>}
               {offerStatus === 'error' && <p role="alert" className="text-sm text-red-600">{lang === 'he' ? 'לא ניתן להשלים את הפעולה. נסו שוב.' : 'The action could not be completed. Please try again.'}</p>}
@@ -373,7 +391,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               <button
                 type="submit"
-                disabled={isSubmitting || offerStatus === 'busy' || !preview}
+                disabled={addingModel || isSubmitting || offerStatus === 'busy' || !preview}
                 className="flex items-center gap-2 px-6 py-2.5 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 rounded-md shadow transition-all active:scale-[0.98] cursor-pointer"
               >
                 {isSubmitting ? (

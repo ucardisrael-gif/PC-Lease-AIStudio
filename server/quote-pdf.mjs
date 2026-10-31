@@ -1,11 +1,9 @@
 import PDFDocument from 'pdfkit';
-import SVGtoPDF from 'svg-to-pdfkit';
+import {drawBrandLogo} from './brand-logo.mjs';
 import bidiFactory from 'bidi-js';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
 const bidi = bidiFactory();
 const font = fileURLToPath(new URL('./fonts/Alef-Regular.ttf', import.meta.url));
-const logo = readFileSync(new URL('../public/brand/pc-lease-logo.svg', import.meta.url), 'utf8');
 const money = n => `₪${(n / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 function visual(text) { const s = String(text); return bidi.getReorderedString(s, bidi.getEmbeddingLevels(s, 'rtl')).replace(/[\u0590-\u05ff]+/g, run => [...run].reverse().join('')); }
 export async function renderQuotePdf(record, lang = 'he') {
@@ -37,7 +35,7 @@ export async function renderQuotePdf(record, lang = 'he') {
     if(line)chunks.push(line);return chunks.length?chunks:['—'];
   };
   const left=40,width=515;
-  SVGtoPDF(doc,logo,left,38,{width:150,height:33});
+  drawBrandLogo(doc,left,38,125);
   text(record.kind==='offer'?(he?'הצעת מחיר':'PRICE ESTIMATE'):(he?'סיכום הזמנה':'ORDER SUMMARY'),300,48,255,17,'#1559d7','right');
   doc.moveTo(left,87).lineTo(left+width,87).strokeColor('#cbd7e6').stroke();
   let y=104;
@@ -57,19 +55,25 @@ export async function renderQuotePdf(record, lang = 'he') {
   header();
   for(let i=0;i<record.quote.items.length;i++){
     const item=record.quote.items[i], product=record.products[i]||{};
-    const plan=item.mode==='lease'?(he?'ליסינג / חודש':'Lease / month'):item.mode==='purchase'?(he?'רכישה':'Purchase'):(he?`השכרה ${item.rentalDays} ימים`:`Rent ${item.rentalDays} days`);
+    const plan=item.mode==='lease'?(record.quote.leasePlan?.name?`${record.quote.leasePlan.name} / ${he?'חודש':'month'}`:(he?'ליסינג / חודש':'Lease / month')):item.mode==='purchase'?(he?'רכישה':'Purchase'):(he?`השכרה ${item.rentalDays} ימים`:`Rent ${item.rentalDays} days`);
     const values=[product.title?.[lang]||product.model||item.productSlug,product.sku||'—',plan,String(item.quantity),displayPrice(item.unitAmountMinor),displayPrice(item.periodTotalMinor)];
     const wrapped=values.map((v,j)=>wrap(v,cols[j].w-8,j===0?8:9));const rowHeight=Math.max(35,Math.max(...wrapped.map(lines=>lines.length))*12+16);
     if(y+rowHeight>735){doc.addPage();y=45;header();}
     doc.rect(left,y,width,rowHeight).fillAndStroke(i%2?'#f8fafd':'#ffffff','#e2e8f0');
     let x=left;wrapped.forEach((lines,j)=>{lines.forEach((line,k)=>text(line,x+4,y+8+k*12,cols[j].w-8,j===0?8:9,'#17233a',j===0?'left':'center'));x+=cols[j].w;});y+=rowHeight;
   }
+  for(const extra of record.quote.addons||[]){
+    const values=[he?extra.nameHe:extra.nameEn,'—',extra.billing==='month'?(he?'חודשי':'Monthly'):(he?'חד פעמי':'One time'),String(extra.quantity),displayPrice(extra.unitMinor),displayPrice(extra.totalMinor)];
+    const wrapped=values.map((v,j)=>wrap(v,cols[j].w-8,j===0?8:9)),height=Math.max(35,Math.max(...wrapped.map(lines=>lines.length))*12+16);
+    if(y+height>735){doc.addPage();y=45;header();}doc.rect(left,y,width,height).fillAndStroke('#f8fafd','#e2e8f0');let x=left;wrapped.forEach((lines,j)=>{lines.forEach((line,k)=>text(line,x+4,y+8+k*12,cols[j].w-8,j===0?8:9,'#17233a',j===0?'left':'center'));x+=cols[j].w;});y+=height;
+  }
   if(y>705){doc.addPage();y=50;}
   const leaseItems=record.quote.items.filter(item=>item.mode==='lease');
   const purchaseItems=record.quote.items.filter(item=>item.mode==='purchase');
   const rentalDays=[...new Set(record.quote.items.filter(item=>item.mode==='short_rental').map(item=>item.rentalDays))];
   const sums=[];
-  if(leaseItems.length) sums.push(`${he?'סה״כ חודשי לליסינג':'MONTHLY LEASE TOTAL'}: ${displayPrice(groupTotal(leaseItems))}`);
+  if(leaseItems.length) sums.push(`${he?'סה״כ חודשי לליסינג':'MONTHLY LEASE TOTAL'}: ${displayPrice(record.quote.leasePlan?record.quote.monthlyMinor:groupTotal(leaseItems))}`);
+  if(record.quote.leasePlan&&record.quote.oneTimeMinor>0)sums.push(`${he?'תוספות חד פעמיות':'ONE-TIME EXTRAS'}: ${displayPrice(record.quote.oneTimeMinor)}`);
   if(purchaseItems.length) sums.push(`${he?'סה״כ רכישה':'PURCHASE TOTAL'}: ${displayPrice(groupTotal(purchaseItems))}`);
   for(const days of rentalDays){const group=record.quote.items.filter(item=>item.mode==='short_rental'&&item.rentalDays===days);sums.push(`${he?`סה״כ השכרה ${days} ימים`:`RENTAL TOTAL (${days} ${days===1?'DAY':'DAYS'})`}: ${displayPrice(groupTotal(group))}`);}
   y+=16;

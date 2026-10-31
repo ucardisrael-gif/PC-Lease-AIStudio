@@ -5,6 +5,12 @@ export const sectionDefaults = {
   ...storyFaqDefaults,
   calculator: {
     visible: true,
+    budgetChoiceHe: 'בחירה לפי תקציב', budgetChoiceEn: 'Choose by budget',
+    modelChoiceHe: 'בחירה לפי מחשב', modelChoiceEn: 'Choose by computer',
+    browseModelsHe: 'לצפייה במחשבים', browseModelsEn: 'Browse computers',
+    pathTitleHe: 'מסלולים לפי התקציב או בחירת מחשבים', pathTitleEn: 'Choose by budget or computer',
+    budgetPathBodyHe: 'בחרו מסלול חודשי, ראו מה כלול בו והמשיכו לבחירת מחשב.', budgetPathBodyEn: 'Choose a monthly plan, review what it includes, then select a computer.',
+    modelPathBodyHe: 'בחרו מחשב, כמות ותנאי ליסינג או השכרה, ואז הוסיפו שירותים לפי הצורך.', modelPathBodyEn: 'Choose a computer, quantity and lease or rental terms, then add services as needed.',
     kickerHe: 'מחשבון עלויות מדויק', kickerEn: 'FINANCIAL ESTIMATOR',
     titleHe: 'חשבו את העלות החודשית לעסק שלכם', titleEn: 'Calculate Monthly Costs for Your Team',
     subtitleHe: 'בחרו דגם, כמות ומסלול — קבלו אומדן מיידי.', subtitleEn: 'Choose a model, quantity and acquisition path for an instant estimate.',
@@ -13,9 +19,9 @@ export const sectionDefaults = {
     leaseModeHe: 'ליסינג ל-36 חודשים', leaseModeEn: 'Lease for 36 months',
     leaseUnavailableHe: 'ליסינג לא זמין', leaseUnavailableEn: 'Lease unavailable',
     priceOnRequestHe: 'מחיר לפי בקשה', priceOnRequestEn: 'Price on request',
-    shortRentalModeHe: 'השכרה גמישה (מיום עד שנה)', shortRentalModeEn: 'Flexible Rental (1 Day to 1 Year)',
+    shortRentalModeHe: 'השכרה גמישה (מ־7 ימים עד שנה)', shortRentalModeEn: 'Flexible Rental (7 Days to 1 Year)',
     purchaseModeHe: 'רכישה מלאה', purchaseModeEn: 'Outright Purchase',
-    rentalTermLabelHe: 'תקופת השכרה מבוקשת (מיום 1 עד שנה)', rentalTermLabelEn: 'Rental Duration (1 Day up to 1 Year)',
+    rentalTermLabelHe: 'תקופת השכרה מבוקשת (מ־7 ימים עד שנה)', rentalTermLabelEn: 'Rental Duration (7 Days up to 1 Year)',
     quantityLabelHe: 'כמות מחשבים (1 עד 1,000)', quantityLabelEn: 'Quantity (1 to 1,000 units)',
     monthlyTotalLabelHe: 'סה״כ תשלום חודשי', monthlyTotalLabelEn: 'Total Monthly Payment',
     purchaseTotalLabelHe: 'סה״כ עלות רכישה', purchaseTotalLabelEn: 'Total Outright Cost',
@@ -38,7 +44,7 @@ export const sectionDefaults = {
     averageRateHe: 'תעריף יומי ממוצע:', averageRateEn: 'Average daily rate:',
     unitRateHe: 'תעריף ליחידה:', unitRateEn: 'Rate per unit:',
     agreementTermHe: 'תקופת הסכם:', agreementTermEn: 'Agreement term:',
-    disclaimerHe: 'מסלול השכרה ניתן לבחירה מיום אחד ועד שנה (365 יום). זמינות ותנאי אספקה כפופים לאישור.', disclaimerEn: 'Rentals are available from 1 day up to 1 year (365 days). Availability and delivery terms require confirmation.'
+    disclaimerHe: 'מסלול השכרה ניתן לבחירה מ־7 ימים ועד שנה (365 יום). זמינות ותנאי אספקה כפופים לאישור.', disclaimerEn: 'Rentals are available from 7 days up to 1 year (365 days). Availability and delivery terms require confirmation.'
   },
   navigation: {
     visible: true,

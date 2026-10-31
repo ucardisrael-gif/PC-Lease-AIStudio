@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
 import { calculateQuote } from '../src/data/quote-calculation.mjs';
 import { getTaxSettings } from './tax-settings.mjs';
+import {calculateLeaseSelection} from './lease-selection.mjs';
 
 export async function saveMultiQuote(db, payload) {
-  const { id, lines, companyName, contactName, email, phone, taxId, city, notes, lang, source } = payload ?? {};
+  const { id, lines, companyName, contactName, email, phone, taxId, city, notes, lang, source, leaseSelection } = payload ?? {};
   const required = [companyName, contactName, email, phone];
   if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ||
       !Array.isArray(lines) || !lines.length || lines.length > 25 ||
@@ -19,7 +20,8 @@ export async function saveMultiQuote(db, payload) {
   });
   const contact = { companyName: companyName.trim(), contactName: contactName.trim(), email: email.trim(), phone: phone.trim(), taxId: taxId?.trim() || '', city: city?.trim() || '', notes: notes?.trim() || '' };
   const invalidControls=required.some(v=>/[\u0000-\u001f\u007f]/.test(v))||[taxId,city].some(v=>typeof v==='string'&&/[\u0000-\u001f\u007f]/.test(v))||(typeof notes==='string'&&/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(notes));
-  const hash = createHash('sha256').update(JSON.stringify({ selections, contact })).digest('hex');
+  const selected=leaseSelection==null?null:{planId:leaseSelection.planId,planVersion:leaseSelection.planVersion,addons:leaseSelection.addons};
+  const hash = createHash('sha256').update(JSON.stringify(selected?{ selections, contact,leaseSelection:selected }:{ selections, contact })).digest('hex');
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -31,6 +33,7 @@ export async function saveMultiQuote(db, payload) {
       return { id, orderNumber: row.order_number, created: false, notification: row.notification_status, quote: row.tariff_snapshot_json.quote, products: row.product_snapshot_json.quoteProducts, contact: row.contact_json, createdAt: row.created_at };
     }
     if(invalidControls)throw new Error('invalid_request');
+    const selectedQuote=selected?await calculateLeaseSelection(client,{...selected,lines:selections},{lock:true}):null;
     const slugs = [...new Set(selections.map(s => s.productSlug))].sort();
     const result = await client.query('SELECT id, slug, details_json, edit_version FROM products WHERE published=true AND slug=ANY($1::text[]) ORDER BY slug FOR SHARE', [slugs]);
     const products = new Map(result.rows.map(r => [r.slug, r]));
@@ -41,7 +44,8 @@ export async function saveMultiQuote(db, payload) {
       return { product: { ...row.details_json, slug: row.slug, editVersion: row.edit_version }, ...selection };
     });
     const tax = await getTaxSettings(client, true);
-    const quote = calculateQuote(resolved, tax.vat_basis_points, {allowUnpriced:true});
+    const baseQuote=calculateQuote(resolved, tax.vat_basis_points, {allowUnpriced:true});
+    const quote=selectedQuote?{...baseQuote,leasePlan:selectedQuote.plan,addons:selectedQuote.extras,monthlyMinor:selectedQuote.monthlyMinor,oneTimeMinor:selectedQuote.oneTimeMinor}:baseQuote;
     const snapshots = resolved.map(l => ({ model: l.product.model, title: l.product.title, slug: l.product.slug, sku: l.product.sku || '', purchasePrice:l.product.purchasePrice ?? null, leasePriceMonthly:l.product.leasePriceMonthly ?? null, leaseTermMonths:l.product.leaseTermMonths ?? null, rentalRates:l.product.rentalRates ? {...l.product.rentalRates,shortMaxDays:l.product.rentalRates.shortMaxDays??6,weekMaxDays:l.product.rentalRates.weekMaxDays??29} : null }));
     const first = resolved[0], firstRow = products.get(first.productSlug);
     const price = quote.items[0].periodTotalMinor===null ? null : { totalAmountMinor: quote.items[0].periodTotalMinor, period: quote.items[0].period, includesVat: true };
@@ -70,7 +74,7 @@ export async function notifyMultiQuote(db, mailer, record, adminOrigin = null) {
         const duration=item.mode==='short_rental'&&item.rentalDays!=null?` · срок: ${item.rentalDays} дн.`:item.mode==='lease'&&item.termMonths!=null?` · срок: ${item.termMonths} мес.`:'';
         const amount=item.periodTotalMinor===null?'цена по запросу':`₪${(item.periodTotalMinor / 100).toFixed(2)} (${item.period})`;
         return `${i+1}. ${product.model}${sku} · ${item.mode} · количество: ${item.quantity}${duration} · ${amount}`;
-      }).join('\n');
+      }).join('\n')+(record.quote.leasePlan?`\n\nПлан: ${record.quote.leasePlan.name}\n${(record.quote.addons||[]).map(x=>`${x.nameEn} · количество: ${x.quantity} · ₪${(x.totalMinor/100).toFixed(2)} (${x.billing})`).join('\n')}\nЕжемесячно: ${record.quote.monthlyMinor===null?'по запросу':`₪${(record.quote.monthlyMinor/100).toFixed(2)}`}\nРазовые позиции: ₪${(record.quote.oneTimeMinor/100).toFixed(2)}`:'');
       const settings=await getOrderNotificationSettings(db);
       const contact=record.contact;
       const extra=[contact.taxId&&`Регистрационный номер: ${contact.taxId}`,contact.city&&`Город: ${contact.city}`,contact.notes&&`Примечание: ${contact.notes}`].filter(Boolean).join('\n');

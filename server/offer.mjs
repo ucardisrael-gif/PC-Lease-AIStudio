@@ -1,9 +1,11 @@
 import { previewQuote } from './quote-preview.mjs';
 import { renderQuotePdf } from './quote-pdf.mjs';
+import {previewLeaseSelection} from './lease-selection.mjs';
 
-export async function createOfferPdf(db, lines, lang, contact) {
+export async function createOfferPdf(db, lines, lang, contact, leaseSelection=null) {
   if (!contact || [contact.companyName, contact.contactName, contact.email, contact.phone].some(v => typeof v !== 'string' || !v.trim() || v.length > 200) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) throw new Error('invalid_contact');
-  const quote = await previewQuote(db, lines);
+  const selection=leaseSelection?await previewLeaseSelection(db,{...leaseSelection,lines}):null;
+  const quote = selection?{...selection.quote,leasePlan:selection.plan,addons:selection.extras,monthlyMinor:selection.monthlyMinor,oneTimeMinor:selection.oneTimeMinor}:await previewQuote(db, lines);
   return renderQuotePdf({ kind: 'offer', quote, products: quote.products, contact }, lang === 'en' ? 'en' : 'he');
 }
 

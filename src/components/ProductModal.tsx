@@ -131,7 +131,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
             {/* Mode & Quantity Selector (3 Options) */}
             <div className="space-y-3 pt-1">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   type="button"
                   disabled={!leaseAvailable}
@@ -155,21 +155,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                       : 'border-[var(--border-line)] text-[var(--text-secondary)]'
                   }`}
                 >
-                  <div className="text-[11px]">{isRtl ? 'השכרה (מיום עד שנה)' : 'Rental (one day to one year)'}</div>
-                  <div className="text-xs font-mono tabular-nums font-bold">{hasRentalRates(product) ? `₪${product.rentalRates.dailyShort}/${isRtl ? 'יום' : 'day'} · ₪${product.rentalRates.monthly}/30 ${isRtl ? 'יום' : 'days'}` : (isRtl ? 'מחיר לפי בקשה' : 'Price on request')}</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMode('purchase')}
-                  className={`p-2.5 rounded-lg border text-start transition-all cursor-pointer ${
-                    selectedMode === 'purchase'
-                      ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-500 text-sky-600 dark:text-sky-400 font-bold'
-                      : 'border-[var(--border-line)] text-[var(--text-secondary)]'
-                  }`}
-                >
-                  <div className="text-[11px]">{isRtl ? 'רכישה ישירה' : 'Direct purchase'}</div>
-                  <div className="text-xs font-mono tabular-nums font-bold">{Number.isFinite(product.purchasePrice) ? `₪${product.purchasePrice.toLocaleString()}` : (isRtl ? 'מחיר לפי בקשה' : 'Price on request')}</div>
+                  <div className="text-[11px]">{isRtl ? 'השכרה (מ־7 ימים עד שנה)' : 'Rental (7 days to one year)'}</div>
+                  <div className="text-xs font-mono tabular-nums font-bold">{hasRentalRates(product) ? `₪${rentalCost(product,7)}/${isRtl ? '7 ימים' : '7 days'} · ₪${product.rentalRates.monthly}/30 ${isRtl ? 'יום' : 'days'}` : (isRtl ? 'מחיר לפי בקשה' : 'Price on request')}</div>
                 </button>
               </div>
 
@@ -184,7 +171,6 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {[
-                      { d: 1, l: isRtl ? 'יום 1' : '1 day' },
                       { d: 7, l: isRtl ? 'שבוע' : '7 days' },
                       { d: 14, l: isRtl ? 'שבועיים' : '14 days' },
                       { d: 30, l: isRtl ? '30 יום' : '30 days' },

@@ -11,7 +11,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ lang, content = defaul
   if (!content.visible) return null;
   const h = (key: 'kicker' | 'title' | 'accent' | 'body' | 'primary' | 'secondary' | 'note') => content[`${key}${lang === 'he' ? 'He' : 'En'}`];
   const action = (target: string) => target === 'calculator' ? onOpenCalculator() : target === 'contact' ? window.location.assign('/contact') : onExploreModels();
-  return <section className="border-b border-[var(--border-line)] bg-[var(--bg-page)]">
+  return <section className="brand-wash brand-wash-cyan border-b border-[var(--border-line)] bg-[var(--bg-page)]">
     <div className="relative max-w-[1440px] mx-auto lg:min-h-[520px] lg:flex lg:items-center overflow-hidden">
       <div className="h-56 sm:h-72 lg:absolute lg:inset-0 lg:h-full bg-slate-900">
         <img src={content.imageUrl} alt={lang === 'he' ? content.imageAltHe : content.imageAltEn} className="w-full h-full object-cover object-left" />

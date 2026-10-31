@@ -1,13 +1,15 @@
-import { hasRentalRates } from '../data/pricing';
-import React, { useState, useMemo } from 'react';
-import { Search, RotateCcw, Cpu, HardDrive, Monitor, ArrowUpRight, Laptop } from 'lucide-react';
+import { hasRentalRates, rentalCost } from '../data/pricing';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, RotateCcw, Cpu, HardDrive, Monitor, ArrowUpRight, Laptop, LayoutGrid, FileText, Shield, ShieldCheck, Box } from 'lucide-react';
 import { Language, LaptopProduct } from '../types';
 import { TRANSLATIONS } from '../data/translations';
 import { ProductImage, specsConfirmed } from './ProductImage';
+import {CatalogExtras, CatalogAddon, CatalogPlan} from './CatalogExtras';
 
 interface CatalogSectionProps {
   lang: Language;
   products: LaptopProduct[];
+  onChooseAddon: (product:LaptopProduct, planId:string, addonId:string)=>void;
   onOpenProductDetails: (product: LaptopProduct) => void;
   onSelectForCalculator: (product: LaptopProduct) => void;
 }
@@ -17,9 +19,13 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
   products,
   onOpenProductDetails,
   onSelectForCalculator,
+  onChooseAddon,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<'All' | 'laptop' | 'desktop'>('All');
+  const [selectedCategory, setSelectedCategory] = useState<'All'|'laptop'|'desktop'|'screen'|'office'|'antivirus'|'insurance'|'other'>('All');
+  const [options,setOptions]=useState<{plans:CatalogPlan[];addons:CatalogAddon[]}|null>(null);
+  const [optionsError,setOptionsError]=useState(false);
+  useEffect(()=>{const c=new AbortController();fetch('/api/lease-options',{signal:c.signal}).then(r=>{if(!r.ok)throw Error();return r.json()}).then(setOptions).catch(()=>{if(!c.signal.aborted)setOptionsError(true)});return()=>c.abort()},[]);
   const [selectedBrand, setSelectedBrand] = useState<'All' | 'Dell' | 'HP' | 'Lenovo'>('All');
   const [selectedCpu, setSelectedCpu] = useState<'All' | 'Core i5' | 'Core i7'>('All');
 
@@ -63,6 +69,13 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
     });
   }, [products, selectedCategory, selectedBrand, selectedCpu, searchQuery, lang]);
 
+  const addons=(options?.addons||[]).filter(a=>{
+    if(selectedBrand!=='All'||selectedCpu!=='All')return false;
+    if(selectedCategory!=='All'&&selectedCategory!==a.category)return false;
+    const q=searchQuery.trim().toLocaleLowerCase();
+    return !q||[a.name_he,a.name_en,a.terms_he,a.terms_en,a.category].some(v=>v.toLocaleLowerCase().includes(q));
+  });
+  const categoryOptions=[['All',lang==='he'?'הכל':'All',LayoutGrid],['laptop',lang==='he'?'ניידים':'Laptops',Laptop],['desktop',lang==='he'?'נייחים':'Desktops',Monitor],['screen',lang==='he'?'מסכים':'Monitors',Monitor],['office',lang==='he'?'אופיס':'Office',FileText],['antivirus',lang==='he'?'אנטי וירוס':'Antivirus',ShieldCheck],['insurance',lang==='he'?'ביטוח':'Insurance',Shield],['other',lang==='he'?'נוספים':'Other',Box]] as const;
   const resetFilters = () => {
     setSearchQuery('');
     setSelectedCategory('All');
@@ -71,57 +84,34 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
   };
 
   return (
-    <section id="catalog" className="py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-page)]">
+    <section id="catalog" className="brand-wash brand-wash-violet py-6 lg:py-10 border-b border-[var(--border-line)] bg-[var(--bg-page)]">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <span className="text-xs font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">
-            {t.catalog.kicker}
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-[var(--text-primary)] mt-2">
-            {lang === 'he' ? 'מחשבים לעסקים' : 'Business Computers'}
-          </h2>
-          <p className="text-sm sm:text-base text-[var(--text-secondary)] mt-3">
-            {lang === 'he'
-              ? 'מחשבים ניידים ונייחים לעסקים. המפרט והזמינות יאושרו בהצעה.'
-              : 'Business laptops and desktop computers. Specifications and availability are confirmed in the quote.'}
-          </p>
-        </div>
-
+        <h1 className="text-2xl font-black mb-4">{lang==='he'?'קטלוג':'Catalogue'}</h1>
+        <div role="group" aria-label={lang==='he'?'קטגוריות הקטלוג':'Catalogue categories'} className="flex flex-wrap gap-2 mb-5">{categoryOptions.map(([value,name,Icon])=><button key={value} type="button" aria-pressed={selectedCategory===value} onClick={()=>{setSelectedCategory(value);setSelectedBrand('All');setSelectedCpu('All');}} className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${selectedCategory===value?'bg-blue-600 text-white border-blue-600':'bg-[var(--bg-surface)] border-[var(--border-line)] hover:border-blue-500'}`}><Icon aria-hidden="true" className="h-4 w-4"/>{name}</button>)}</div>
         {/* Filter Controls Bar */}
         <div className="p-4 sm:p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-line)] shadow-sm mb-10 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3.5 items-center">
             {/* Search Input */}
-            <div className="md:col-span-4 relative">
+            <div className="md:col-span-7 relative">
               <Search className="w-4 h-4 text-[var(--text-secondary)] absolute top-1/2 start-3.5 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t.catalog.searchPlaceholder}
+                aria-label={lang==='he'?'חיפוש בכל הקטלוג':'Search catalogue'}
+                placeholder={lang==='he'?'חיפוש מחשב, מוצר או שירות':'Search computers, products or services'}
                 className="w-full ps-10 pe-4 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border-line)] bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
               />
             </div>
 
-            {/* Category Filter */}
-            <div className="md:col-span-3">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value as any)}
-                className="w-full px-3 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border-line)] bg-[var(--bg-page)] text-[var(--text-primary)] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              >
-                <option value="All">{lang === 'he' ? 'כל הסוגים (ניידים + דסקטופ)' : 'All Hardware Types'}</option>
-                <option value="laptop">{lang === 'he' ? 'מחשבים ניידים בלבד' : 'Laptops Only'}</option>
-                <option value="desktop">{lang === 'he' ? 'מחשבים נייחים' : 'Desktop Computers'}</option>
-              </select>
-            </div>
-
             {/* Brand Filter */}
-            <div className="md:col-span-2">
+            <div hidden={!['All','laptop','desktop'].includes(selectedCategory)} className="md:col-span-2">
               <select
+                aria-label={lang==='he'?'יצרן':'Brand'}
+                disabled={!['All','laptop','desktop'].includes(selectedCategory)}
                 value={selectedBrand}
                 onChange={(e) => setSelectedBrand(e.target.value as any)}
-                className="w-full px-3 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border-line)] bg-[var(--bg-page)] text-[var(--text-primary)] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                className="w-full px-3 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border-line)] bg-[var(--bg-page)] text-[var(--text-primary)] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-40"
               >
                 <option value="All">{t.catalog.allBrands}</option>
                 <option value="Dell">Dell</option>
@@ -131,11 +121,13 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
             </div>
 
             {/* CPU Filter */}
-            <div className="md:col-span-2">
+            <div hidden={!['All','laptop','desktop'].includes(selectedCategory)} className="md:col-span-2">
               <select
+                aria-label={lang==='he'?'מעבד':'Processor'}
+                disabled={!['All','laptop','desktop'].includes(selectedCategory)}
                 value={selectedCpu}
                 onChange={(e) => setSelectedCpu(e.target.value as any)}
-                className="w-full px-3 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border-line)] bg-[var(--bg-page)] text-[var(--text-primary)] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                className="w-full px-3 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border-line)] bg-[var(--bg-page)] text-[var(--text-primary)] font-medium focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-40"
               >
                 <option value="All">{t.catalog.allCpus}</option>
                 <option value="Core i5">Intel Core i5</option>
@@ -159,21 +151,21 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
           {/* Active Results Counter */}
           <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] pt-2 border-t border-[var(--border-subtle)]">
             <span>
-              {t.catalog.resultsCount.replace('{count}', String(filteredProducts.length))}
+              {lang==='he'?`נמצאו ${filteredProducts.length+addons.length} פריטים`:`${filteredProducts.length+addons.length} items found`}
             </span>
             <span className="font-medium text-sky-600 dark:text-sky-400">
               {lang === 'he'
                 ? 'מחירים לפי דגם'
-                : 'Prices vary by model · Excl. VAT'}
+                : 'Prices vary by item'}
             </span>
           </div>
         </div>
 
         {/* Product Cards Grid with 3D Motion */}
-        {filteredProducts.length === 0 ? (
-          <div className="text-center py-16 p-8 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-line)] max-w-lg mx-auto">
+        {filteredProducts.length === 0 && !options && !optionsError ? <p role="status" className="text-center py-8 text-[var(--text-secondary)]">{lang==='he'?'טוען קטלוג…':'Loading catalogue…'}</p> : filteredProducts.length === 0 && addons.length === 0 && !optionsError ? (
+          <div className="text-center p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-line)] max-w-lg mx-auto">
             <p className="text-sm text-[var(--text-secondary)] mb-4">
-              {t.catalog.noResults}
+              {lang==='he'?'לא נמצאו פריטים מתאימים.':'No items match your search and filters.'}
             </p>
             <button
               onClick={resetFilters}
@@ -187,7 +179,7 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
             {filteredProducts.map((product) => (
               <div
                 key={product.slug}
-                className="flex flex-col justify-between rounded-xl bg-[var(--bg-surface)] border border-[var(--border-line)] p-6 shadow-sm hover:shadow-xl hover:border-sky-500/50 hover:-translate-y-1.5 transition-all duration-300 group"
+                className="brand-card flex flex-col justify-between rounded-xl bg-[var(--bg-surface)] border border-[var(--border-line)] p-6 shadow-sm hover:shadow-xl hover:border-sky-500/50 hover:-translate-y-1.5 transition-all duration-300 group"
               >
                 <div>
                   {/* Card Header & Kicker */}
@@ -243,9 +235,9 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
                       </div>
                     </div>
                     <div className="p-2 rounded bg-[var(--bg-page)] border border-[var(--border-subtle)]">
-                      <div className="text-[10px] text-[var(--text-secondary)]">{lang === 'he' ? 'השכרה (מיום עד שנה)' : 'Rental (one day to one year)'}</div>
+                      <div className="text-[10px] text-[var(--text-secondary)]">{lang === 'he' ? 'השכרה (מ־7 ימים עד שנה)' : 'Rental (7 days to one year)'}</div>
                       <div className="text-sm font-black text-sky-600 dark:text-sky-400 font-mono tabular-nums">
-                        {hasRentalRates(product) ? <>₪{product.rentalRates.dailyShort} <span className="text-[10px] font-normal">/ {lang === 'he' ? 'יום' : 'day'} · ₪{product.rentalRates.monthly}/30 {lang === 'he' ? 'יום' : 'days'}</span></> : (lang === 'he' ? 'מחיר לפי בקשה' : 'Price on request')}
+                        {hasRentalRates(product) ? <>₪{rentalCost(product,7)} <span className="text-[10px] font-normal">/ {lang === 'he' ? '7 ימים' : '7 days'} · ₪{product.rentalRates.monthly}/30 {lang === 'he' ? 'יום' : 'days'}</span></> : (lang === 'he' ? 'מחיר לפי בקשה' : 'Price on request')}
                       </div>
                     </div>
                   </div>
@@ -273,6 +265,8 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
             ))}
           </div>
         )}
+        {optionsError&&<p role="status" className="mt-5 text-sm text-[var(--text-secondary)]">{lang==='he'?'לא ניתן לטעון מוצרים ושירותים נוספים.':'Additional products and services could not be loaded.'}</p>}
+        <CatalogExtras lang={lang} products={products} plans={options?.plans||[]} addons={addons} onChoose={onChooseAddon}/>
       </div>
     </section>
   );

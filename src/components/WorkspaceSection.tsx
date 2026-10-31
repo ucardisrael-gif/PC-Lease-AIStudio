@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Building2, TrendingUp, ShieldCheck, Sparkles } from 'lucide-react';
 import { Language } from '../types';
 import { sectionDefaults } from '../data/section-defaults.mjs';
+import { TrustSection, TrustContent } from './TrustSection';
 
 export type WorkspaceContent = typeof sectionDefaults.workspace;
 export type WorkspaceBlock = { content: WorkspaceContent; version: number };
@@ -9,15 +10,16 @@ export type WorkspaceBlock = { content: WorkspaceContent; version: number };
 interface WorkspaceSectionProps {
   lang: Language;
   content?: WorkspaceContent;
+  trust?: TrustContent;
 }
 
-export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({ lang, content = sectionDefaults.workspace }) => {
+export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({ lang, content = sectionDefaults.workspace, trust }) => {
   const [isHovered, setIsHovered] = useState(false);
   const v = (key: 'kicker' | 'title' | 'body' | 'imageLabel' | 'item1Title' | 'item1Body' | 'item2Title' | 'item2Body' | 'item3Title' | 'item3Body') => content[`${key}${lang === 'he' ? 'He' : 'En'}`];
 
   if (!content.visible) return null;
   return (
-    <section id="workspace" className="scroll-mt-28 py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-surface)] overflow-hidden">
+    <section id="workspace" className="brand-wash brand-wash-cyan scroll-mt-28 py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-surface)] overflow-hidden">
       <div className="max-w-[1504px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
           {/* Architectural Image with 3D Motion & Zoom Effect */}
@@ -68,17 +70,17 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({ lang, conten
 
             {/* 3 Pillars */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full pt-2">
-              <div className="text-start p-4 rounded-xl bg-[var(--bg-page)] border border-[var(--border-line)]">
+              <div className="brand-card text-start p-4 rounded-xl bg-[var(--bg-page)] border border-[var(--border-line)]">
                 <Building2 className="w-7 h-7 text-sky-500 mb-3" />
                 <div className="text-base font-bold text-[var(--text-primary)]">{v('item1Title')}</div>
                 <div className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">{v('item1Body')}</div>
               </div>
-              <div className="text-start p-4 rounded-xl bg-[var(--bg-page)] border border-[var(--border-line)]">
+              <div className="brand-card text-start p-4 rounded-xl bg-[var(--bg-page)] border border-[var(--border-line)]">
                 <TrendingUp className="w-7 h-7 text-sky-500 mb-3" />
                 <div className="text-base font-bold text-[var(--text-primary)]">{v('item2Title')}</div>
                 <div className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">{v('item2Body')}</div>
               </div>
-              <div className="text-start p-4 rounded-xl bg-[var(--bg-page)] border border-[var(--border-line)]">
+              <div className="brand-card text-start p-4 rounded-xl bg-[var(--bg-page)] border border-[var(--border-line)]">
                 <ShieldCheck className="w-7 h-7 text-sky-500 mb-3" />
                 <div className="text-base font-bold text-[var(--text-primary)]">{v('item3Title')}</div>
                 <div className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">{v('item3Body')}</div>
@@ -87,6 +89,7 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({ lang, conten
           </div>
         </div>
       </div>
+      {trust && <TrustSection lang={lang} content={trust} compact />}
     </section>
   );
 };

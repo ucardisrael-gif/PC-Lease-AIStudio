@@ -10,6 +10,7 @@ interface PricingCalculatorProps {
   content: typeof sectionDefaults.calculator;
   products: LaptopProduct[];
   selectedProduct: LaptopProduct;
+  embedded?: boolean;
   onSelectProduct: (product: LaptopProduct) => void;
   onContinueToQuote: (
     product: LaptopProduct,
@@ -24,6 +25,7 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
   content,
   products,
   selectedProduct,
+  embedded = false,
   onSelectProduct,
   onContinueToQuote,
 }) => {
@@ -50,7 +52,7 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
   };
 
   const handleDaysChange = (val: number) => {
-    const clamped = Math.max(1, Math.min(365, val));
+    const clamped = Math.max(7, Math.min(365, val));
     setRentalDays(clamped);
   };
 
@@ -70,14 +72,28 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
 
   // Quick preset days options
   const rentalPresets = [
-    ...[1, 3, 7, 14, 30, 90, 180, 365].map(days => ({ days, labelHe: content[`preset${days}He` as keyof typeof content] as string, labelEn: content[`preset${days}En` as keyof typeof content] as string })),
+    ...[7, 14, 30, 90, 180, 365].map(days => ({ days, labelHe: content[`preset${days}He` as keyof typeof content] as string, labelEn: content[`preset${days}En` as keyof typeof content] as string })),
   ];
 
+  if (embedded) return <div id="calculator" className="space-y-4 pt-3 border-t border-[var(--border-subtle)]">
+    <div>
+      <p className="text-sm font-semibold mb-2">{label('modeLabel')}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" disabled={!leaseAvailable} aria-pressed={selectedMode==='lease'} onClick={()=>setMode('lease')} className={`rounded-xl border p-3 text-start disabled:opacity-50 ${selectedMode==='lease'?'border-sky-500 bg-sky-50 text-sky-800 dark:bg-sky-950 dark:text-sky-200':'border-[var(--border-line)]'}`}><span className="block font-bold text-sm">{leaseAvailable?label('leaseMode'):label('leaseUnavailable')}</span><span className="block text-xs mt-1">{leaseAvailable&&(Number.isFinite(leaseMonthlyRatePerUnit)?`₪${leaseMonthlyRatePerUnit} / ${isRtl?'חודש':'month'}`:label('priceOnRequest'))}</span></button>
+        <button type="button" aria-pressed={selectedMode==='short_rental'} onClick={()=>setMode('short_rental')} className={`rounded-xl border p-3 text-start ${selectedMode==='short_rental'?'border-sky-500 bg-sky-50 text-sky-800 dark:bg-sky-950 dark:text-sky-200':'border-[var(--border-line)]'}`}><span className="block font-bold text-sm">{label('shortRentalMode')}</span><span className="block text-xs mt-1">{hasRentalRates(selectedProduct)?`₪${rentalCost(selectedProduct,7)} / ${isRtl?'7 ימים':'7 days'}`:label('priceOnRequest')}</span></button>
+      </div>
+    </div>
+    {selectedMode==='short_rental'&&<div className="space-y-2"><label className="block text-sm font-semibold" htmlFor="integrated-rental-days">{label('rentalTermLabel')}</label><input id="integrated-rental-days" type="number" min={7} max={365} value={rentalDays} onChange={e=>handleDaysChange(parseInt(e.target.value,10)||1)} className="w-full rounded-xl border border-[var(--border-line)] bg-[var(--bg-page)] px-3 py-2"/><div className="flex flex-wrap gap-2">{rentalPresets.map(p=><button key={p.days} type="button" aria-pressed={rentalDays===p.days} onClick={()=>handleDaysChange(p.days)} className={`rounded-lg border px-3 py-1 text-xs ${rentalDays===p.days?'border-sky-600 bg-sky-600 text-white':'border-[var(--border-line)]'}`}>{isRtl?p.labelHe:p.labelEn}</button>)}</div></div>}
+    <div><label className="block text-sm font-semibold mb-2" htmlFor="integrated-quantity">{label('quantityLabel')}</label><div className="flex items-center gap-2"><button type="button" aria-label={isRtl?'הפחתת כמות':'Decrease quantity'} onClick={()=>handleQuantityChange(String(Math.max(1,quantity-1)))} className="h-11 w-11 rounded-xl border border-[var(--border-line)] text-xl">−</button><input id="integrated-quantity" type="number" min={1} max={1000} value={quantity||''} onChange={e=>handleQuantityChange(e.target.value)} className="h-11 w-24 rounded-xl border border-[var(--border-line)] bg-[var(--bg-page)] text-center font-bold"/><button type="button" aria-label={isRtl?'הגדלת כמות':'Increase quantity'} onClick={()=>handleQuantityChange(String(Math.min(1000,quantity+1)))} className="h-11 w-11 rounded-xl border border-[var(--border-line)] text-xl">+</button></div>{inputError&&<p role="alert" className="text-sm text-red-600 mt-1">{inputError}</p>}</div>
+    <div className="rounded-xl bg-[var(--bg-page)] border border-[var(--border-line)] p-4 flex flex-wrap items-end justify-between gap-3"><div><div className="text-sm text-[var(--text-secondary)]">{selectedMode==='short_rental'?label('rentalTotal'):label('monthlyTotalLabel')}</div><div className="text-2xl font-black text-sky-600" aria-live="polite">{(selectedMode==='short_rental'?totalRentalCost:leaseMonthlyTotal)===null?label('priceOnRequest'):`₪${(selectedMode==='short_rental'?totalRentalCost:leaseMonthlyTotal)!.toLocaleString()}`}</div><p className="text-xs text-[var(--text-secondary)] mt-1">{selectedMode==='lease'?(isRtl?'לחודש':'per month'):(isRtl?`${rentalDays} ימים`:`${rentalDays} days`)}</p></div><button type="button" disabled={!isValidQuantity} onClick={()=>onContinueToQuote(selectedProduct,selectedMode,quantity,selectedMode==='short_rental'?rentalDays:undefined)} className="rounded-xl bg-blue-600 px-6 py-3 font-bold text-white disabled:opacity-50">{label('continueCta')}</button></div>
+    <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{label('disclaimer')}</p>
+  </div>;
+
   return (
-    <section id="calculator" className="py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-page)]">
+    <section id="calculator" className={embedded ? 'pb-12 bg-[var(--bg-page)]' : 'brand-wash brand-wash-cyan py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-page)]'}>
       <div className="max-w-[1504px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-10">
+        {!embedded && <div className="text-center max-w-3xl mx-auto mb-10">
           <span className="text-xs font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">
             {lang === 'he' ? content.kickerHe : content.kickerEn}
           </span>
@@ -87,7 +103,7 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
           <p className="text-sm sm:text-base text-[var(--text-secondary)] mt-3">
             {lang === 'he' ? content.subtitleHe : content.subtitleEn}
           </p>
-        </div>
+        </div>}
 
         {/* Main Calculator Box */}
         <div className="w-full mx-auto rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-line)] p-5 sm:p-8 lg:p-10 shadow-xl">
@@ -95,7 +111,7 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
             {/* Input Controls (Left Column) */}
             <div className="md:col-span-7 space-y-6">
               {/* 1. Device Picker */}
-              <div>
+              {!embedded && <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
                   {label('deviceLabel')}
                 </label>
@@ -115,14 +131,14 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-[var(--text-secondary)]" dir="ltr">{selectedProduct.cpu.family} · {selectedProduct.ramGB}GB RAM</p>
-              </div>
+              </div>}
 
               {/* 2. Acquisition Mode: 3 Options (Lease, Short-Term Rental from 1 day to 1 year, Purchase) */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
                   {label('modeLabel')}
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {/* Option 1: Lease (36 mo) */}
                   <button
                     type="button"
@@ -157,25 +173,7 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
                       <Clock className="w-3.5 h-3.5 text-sky-500 shrink-0" />
                     </div>
                     <div className="text-xs font-mono font-semibold text-sky-600 dark:text-sky-400 mt-1">
-                      {hasRentalRates(selectedProduct) ? `₪${selectedProduct.rentalRates.dailyShort} / ${isRtl ? 'יום' : 'day'}` : label('priceOnRequest')}
-                    </div>
-                  </button>
-
-                  {/* Option 3: Outright Purchase */}
-                  <button
-                    type="button"
-                    onClick={() => setMode('purchase')}
-                    className={`p-3 rounded-lg border text-start transition-all cursor-pointer ${
-                      selectedMode === 'purchase'
-                        ? 'bg-sky-50 dark:bg-sky-950/40 border-sky-600 dark:border-sky-400 text-sky-700 dark:text-sky-300 shadow-sm ring-1 ring-sky-500/20'
-                        : 'bg-[var(--bg-surface)] border-[var(--border-line)] text-[var(--text-secondary)] hover:border-[var(--text-secondary)]'
-                    }`}
-                  >
-                    <div className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">
-                      {label('purchaseMode')}
-                    </div>
-                    <div className="text-xs font-mono font-semibold text-[var(--text-primary)] mt-1">
-                      {Number.isFinite(selectedProduct.purchasePrice) ? `₪${selectedProduct.purchasePrice.toLocaleString()}` : label('priceOnRequest')}
+                      {hasRentalRates(selectedProduct) ? `₪${rentalCost(selectedProduct,7)} / ${isRtl ? '7 ימים' : '7 days'}` : label('priceOnRequest')}
                     </div>
                   </button>
                 </div>
@@ -194,7 +192,7 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
                       <input
                         type="number"
                         aria-label={label('rentalTermLabel')}
-                        min={1}
+                        min={7}
                         max={365}
                         value={rentalDays}
                         onChange={(e) => handleDaysChange(parseInt(e.target.value, 10) || 1)}
@@ -211,14 +209,14 @@ export const PricingCalculator: React.FC<PricingCalculatorProps> = ({
                     <input
                       type="range"
                       aria-label={`${label('rentalTermLabel')} — ${isRtl ? 'מחוון' : 'slider'}`}
-                      min={1}
+                      min={7}
                       max={365}
                       value={rentalDays}
                       onChange={(e) => handleDaysChange(parseInt(e.target.value, 10))}
                       className="w-full accent-sky-600 h-2 bg-sky-200 dark:bg-sky-900 rounded-lg cursor-pointer"
                     />
                     <div className="flex justify-between gap-1 text-[11px] text-[var(--text-secondary)] font-mono">
-                      <span>{isRtl ? 'יום 1' : '1 day'}</span>
+                      <span>{isRtl ? '7 ימים' : '7 days'}</span>
                       <span className="hidden sm:inline">{isRtl ? 'חודש (30 יום)' : '1 mo (30d)'}</span>
                       <span className="hidden sm:inline">{isRtl ? '6 חודשים' : '6 mo'}</span>
                       <span>{isRtl ? 'שנה (365 יום)' : '1 year (365d)'}</span>

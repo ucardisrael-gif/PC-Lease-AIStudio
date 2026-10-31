@@ -12,6 +12,7 @@ test('unpriced request keeps missing amounts unknown and preserves priced lines'
  const quote=calculateQuote(lines,1800,{allowUnpriced:true});
  assert.equal(quote.items[0].periodTotalMinor,20000);assert.equal(quote.items[1].periodTotalMinor,null);assert.equal(quote.items[1].unitAmountMinor,null);assert.equal(quote.totalMinor,null);assert.equal(quote.subtotalMinor,null);assert.equal(quote.vatMinor,null);
  assert.equal(calculateQuote([{product:missing,mode:'short_rental',quantity:1,rentalDays:7}],1800,{allowUnpriced:true}).items[0].periodTotalMinor,null);
+ assert.throws(()=>calculateQuote([{product:missing,mode:'short_rental',quantity:1,rentalDays:6}],1800,{allowUnpriced:true}),/invalid_price/);
  assert.throws(()=>calculateQuote([{product:missing,mode:'short_rental',quantity:1,rentalDays:366}],1800,{allowUnpriced:true}),/invalid_price/);
  assert.throws(()=>calculateQuote([{product:{...missing,leaseTermMonths:12},mode:'lease',quantity:1}],1800,{allowUnpriced:true}),/price_unavailable/);
 });

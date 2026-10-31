@@ -1,5 +1,8 @@
 import {randomUUID} from 'node:crypto';
 import {requireTransactionPermission} from './transaction-permissions.mjs';
+import {snapshotPaymentCommission,snapshotCorrectedPaymentAmount,snapshotCorrectedPaymentDate} from './commission-accrual.mjs';
+import {propagateRefundLink} from './commission-refunds.mjs';
+import {capturePaymentOwner,inheritPaymentOwner} from './commission-ownership.mjs';
 const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 const clean=(v,max)=>typeof v==='string'&&v.length<=max&&!/[\u0000-\u001f\u007f]/.test(v);
 const validDate=v=>{if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v)||v.startsWith('0000'))return false;const d=new Date(`${v}T00:00:00Z`);return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===v;};
@@ -48,8 +51,8 @@ export async function createFinancialEntry(db,actor,input){
   }
   let requestId=input.requestId,amount=input.amountMinor;
   if(input.kind==='reversal'){const old=(await c.query('SELECT * FROM financial_entries WHERE id=$1 FOR UPDATE',[input.reversesId])).rows[0];if(!old)throw Error('not_found');if(old.kind==='reversal')throw Error('invalid_input');if((await c.query('SELECT 1 FROM financial_entries WHERE reverses_id=$1',[old.id])).rowCount)throw Error('already_reversed');requestId=old.request_id;amount=old.amount_minor;}
-  if(!(await c.query('SELECT 1 FROM requests WHERE id=$1 FOR SHARE',[requestId])).rowCount)throw Error('request_not_found');
-  const row=(await c.query("INSERT INTO financial_entries(id,request_id,kind,amount_minor,reference,notes,reverses_id,created_by,occurred_on) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *,to_char(occurred_on,'YYYY-MM-DD') AS occurred_on",[input.id,requestId,input.kind,amount,input.reference.trim(),input.notes.trim(),input.kind==='reversal'?input.reversesId:null,actor,occurredOn])).rows[0];await c.query('COMMIT');return row;
+  if(!(await c.query('SELECT 1 FROM requests WHERE id=$1 FOR UPDATE',[requestId])).rowCount)throw Error('request_not_found');
+  const row=(await c.query("INSERT INTO financial_entries(id,request_id,kind,amount_minor,reference,notes,reverses_id,created_by,occurred_on) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *,to_char(occurred_on,'YYYY-MM-DD') AS occurred_on",[input.id,requestId,input.kind,amount,input.reference.trim(),input.notes.trim(),input.kind==='reversal'?input.reversesId:null,actor,occurredOn])).rows[0];if(input.kind==='payment'){await capturePaymentOwner(c,row.id,actor);await snapshotPaymentCommission(c,row.id);}await c.query('COMMIT');return row;
  }catch(error){await c.query('ROLLBACK');if(error.code==='23505')throw Error('duplicate_entry');throw error;}finally{c.release();}
 }
 
@@ -64,7 +67,7 @@ export async function correctFinancialDate(db,actor,input){
   const reversal=randomUUID(),replacement=randomUUID();
   await c.query("INSERT INTO financial_entries(id,request_id,kind,amount_minor,reference,notes,reverses_id,created_by) VALUES($1,$2,'reversal',$3,'','Date correction',$4,$5)",[reversal,original.request_id,original.amount_minor,original.id,actor]);
   await c.query('INSERT INTO financial_entries(id,request_id,kind,amount_minor,reference,notes,created_by,occurred_on) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[replacement,original.request_id,original.kind,original.amount_minor,original.reference,original.notes,actor,input.occurredOn]);
-  const row=(await c.query("INSERT INTO financial_date_corrections(id,original_entry_id,reversal_entry_id,replacement_entry_id,occurred_on,actor_user_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,original_entry_id,reversal_entry_id,replacement_entry_id,actor_user_id,to_char(occurred_on,'YYYY-MM-DD') AS occurred_on",[input.operationId,original.id,reversal,replacement,input.occurredOn,actor])).rows[0];await c.query('COMMIT');return row;
+  const row=(await c.query("INSERT INTO financial_date_corrections(id,original_entry_id,reversal_entry_id,replacement_entry_id,occurred_on,actor_user_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,original_entry_id,reversal_entry_id,replacement_entry_id,actor_user_id,to_char(occurred_on,'YYYY-MM-DD') AS occurred_on",[input.operationId,original.id,reversal,replacement,input.occurredOn,actor])).rows[0];if(original.kind==='refund')await propagateRefundLink(c,actor,original.id,replacement);if(original.kind==='payment'){await inheritPaymentOwner(c,original.id,replacement,actor);await snapshotCorrectedPaymentDate(c,actor,original.id,replacement);}await c.query('COMMIT');return row;
  }catch(error){await c.query('ROLLBACK');if(error.code==='23505')throw Error('already_reversed');throw error;}finally{c.release();}
 }
 
@@ -79,6 +82,6 @@ export async function correctFinancialAmount(db,actor,input){
   const reversal=randomUUID(),replacement=randomUUID();
   await c.query("INSERT INTO financial_entries(id,request_id,kind,amount_minor,reference,notes,reverses_id,created_by) VALUES($1,$2,'reversal',$3,'','Amount correction',$4,$5)",[reversal,original.request_id,original.amount_minor,original.id,actor]);
   await c.query('INSERT INTO financial_entries(id,request_id,kind,amount_minor,reference,notes,created_by,occurred_on) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[replacement,original.request_id,original.kind,input.amountMinor,original.reference,original.notes,actor,original.occurred_on]);
-  const row=(await c.query('INSERT INTO financial_amount_corrections(id,original_entry_id,reversal_entry_id,replacement_entry_id,amount_minor,actor_user_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,original_entry_id,reversal_entry_id,replacement_entry_id,amount_minor,actor_user_id',[input.operationId,original.id,reversal,replacement,input.amountMinor,actor])).rows[0];await c.query('COMMIT');return row;
+  const row=(await c.query('INSERT INTO financial_amount_corrections(id,original_entry_id,reversal_entry_id,replacement_entry_id,amount_minor,actor_user_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,original_entry_id,reversal_entry_id,replacement_entry_id,amount_minor,actor_user_id',[input.operationId,original.id,reversal,replacement,input.amountMinor,actor])).rows[0];if(original.kind==='refund')await propagateRefundLink(c,actor,original.id,replacement);if(original.kind==='payment'){await inheritPaymentOwner(c,original.id,replacement,actor);await snapshotCorrectedPaymentAmount(c,actor,original.id,replacement);}await c.query('COMMIT');return row;
  }catch(error){await c.query('ROLLBACK');if(error.code==='23505')throw Error('already_reversed');throw error;}finally{c.release();}
 }

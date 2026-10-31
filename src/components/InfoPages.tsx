@@ -15,7 +15,7 @@ function readPendingInquiry():PendingInquiry|null {
 export function AboutPage({ lang, block }: { lang: Language; block: AboutBlock }) {
   const c = block.content, he = lang === 'he';
   if (!c.visible) return null;
-  return <main className="min-h-[65vh] py-16 sm:py-24 bg-[var(--bg-page)]"><div className="max-w-[1280px] mx-auto px-5 sm:px-8 grid lg:grid-cols-2 gap-10 items-center">
+  return <main className="brand-wash brand-wash-cyan min-h-[65vh] py-16 sm:py-24 bg-[var(--bg-page)]"><div className="max-w-[1280px] mx-auto px-5 sm:px-8 grid lg:grid-cols-2 gap-10 items-center">
     <div className="space-y-6"><span className="text-sm font-bold tracking-widest text-sky-600">{he ? c.kickerHe : c.kickerEn}</span>
       <h1 className="text-4xl sm:text-5xl font-black leading-tight text-[var(--text-primary)]">{he ? c.titleHe : c.titleEn}</h1>
       <p className="text-lg leading-relaxed text-[var(--text-secondary)]">{he ? c.bodyHe : c.bodyEn}</p>
@@ -44,14 +44,14 @@ export function ContactPage({ lang, block, products, catalogStatus }: { lang: La
   };
   if(!c.visible){
     if(!pending&&status!=='sent'&&status!=='saved')return null;
-    return <main className="min-h-[65vh] py-16 px-5"><form onSubmit={submit} className="max-w-xl mx-auto p-6 rounded-2xl border border-[var(--border-line)] bg-[var(--bg-surface)] space-y-5">
+    return <main className="brand-wash brand-wash-violet min-h-[65vh] py-16 px-5"><form onSubmit={submit} className="max-w-xl mx-auto p-6 rounded-2xl border border-[var(--border-line)] bg-[var(--bg-surface)] space-y-5">
       {pending?<><p role="alert">{he?'טופס יצירת הקשר אינו זמין כעת. ניתן לבדוק אם ההודעה הקודמת נשמרה.':'The contact form is currently unavailable. You can check whether your previous message was saved.'}</p>{status==='uncertain'&&<p>{he?'עדיין לא התקבל אישור.':'Confirmation has not yet been received.'}</p>}<button disabled={status==='sending'} className="px-7 py-3 rounded-lg bg-blue-700 text-white font-bold disabled:opacity-50">{status==='sending'?(he?'שולח…':'Checking…'):(he?'בדיקת ההודעה':'Check message')}</button><button type="button" disabled={status==='sending'} className="block underline text-sm" onClick={()=>{if(!window.confirm(he?'ייתכן שההודעה כבר נשמרה. למחוק את הניסיון מהדפדפן?':'The message may already have been saved. Remove this attempt from the browser?'))return;try{sessionStorage.removeItem(inquiryStorageKey);}catch{return;}setPending(null);setStatus('idle');}}>{he?'מחיקת הניסיון מהדפדפן':'Remove attempt from this browser'}</button></>:<p role="status">{status==='sent'?(he?c.successHe:c.successEn):(he?c.savedHe:c.savedEn)}</p>}
     </form></main>;
   }
   const input = 'w-full mt-2 px-4 py-3 rounded-xl border border-[var(--border-line)] bg-[var(--bg-page)] text-[var(--text-primary)] focus:outline-2 focus:outline-blue-600';
-  return <main className="min-h-[65vh] py-16 sm:py-20 bg-[var(--bg-page)]"><div className="max-w-[1120px] mx-auto px-5 sm:px-8 grid lg:grid-cols-5 gap-10">
+  return <main className="brand-wash brand-wash-violet min-h-[65vh] py-16 sm:py-20 bg-[var(--bg-page)]"><div className="max-w-[1120px] mx-auto px-5 sm:px-8 grid lg:grid-cols-5 gap-10">
     <div className="lg:col-span-2 space-y-5"><div className="w-14 h-14 grid place-items-center bg-sky-500/10 text-sky-600 rounded-2xl"><MessageSquare /></div><h1 className="text-4xl sm:text-5xl font-black text-[var(--text-primary)]">{he ? c.titleHe : c.titleEn}</h1><p className="text-lg text-[var(--text-secondary)] leading-relaxed">{he ? c.bodyHe : c.bodyEn}</p>{c.publicEmail && <a href={`mailto:${c.publicEmail}`} className="flex items-center gap-2 text-sky-600"><Mail className="w-5 h-5" /><bdi>{c.publicEmail}</bdi></a>}{c.publicPhone && <a href={`tel:${c.publicPhone.replace(/[^+0-9]/g, '')}`} className="flex items-center gap-2 text-sky-600"><Phone className="w-5 h-5" /><bdi>{c.publicPhone}</bdi></a>}{c.publicWhatsApp && <a href={`https://wa.me/${c.publicWhatsApp}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sky-600"><MessageSquare className="w-5 h-5" /><span>WhatsApp</span></a>}</div>
-    <form onSubmit={submit} className="lg:col-span-3 p-6 sm:p-8 rounded-2xl border border-[var(--border-line)] bg-[var(--bg-surface)] shadow-lg space-y-5">
+    <form onSubmit={submit} className="brand-feature lg:col-span-3 p-6 sm:p-8 rounded-2xl border border-[var(--border-line)] bg-[var(--bg-surface)] shadow-lg space-y-5">
       <fieldset disabled={!!pending||status==='sending'} className="space-y-5 disabled:opacity-75">
       {productSlug&&<div className="rounded-xl border border-[var(--border-line)] p-3 text-sm">{product?<p>{he?'שאלה על הדגם':'Question about model'}: <bdi>{product.model}</bdi></p>:<p>{catalogStatus==='loading'?(he?'טוען את הדגם…':'Loading model…'):(he?'לא ניתן לזהות את הדגם. ניתן להסירו ולהמשיך.':'The model could not be identified. Remove it to continue.')}</p>}<button type="button" className="underline text-blue-600" onClick={()=>setProductSlug('')}>{he?'הסרת הדגם':'Remove model'}</button></div>}
       <label className="block font-semibold text-sm text-[var(--text-primary)]">{he ? c.nameHe : c.nameEn} *<input className={input} required maxLength={200} value={name} onChange={e => setName(e.target.value)} autoComplete="name" /></label>

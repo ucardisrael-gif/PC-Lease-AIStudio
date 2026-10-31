@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, ShieldCheck, Store } from 'lucide-react';
 import { Language } from '../types';
 import { CustomerOrders } from './CustomerOrders';
 import { CustomerProfile } from './CustomerProfile';
 
-type User = { email: string; role: 'admin' | 'customer'; permissions?: string[]; displayName?: string | null;emailVerified?:boolean };
+type User = { email: string; role: 'admin' | 'customer'; permissions?: string[]; displayName?: string | null;emailVerified?:boolean;dealerAccess?:boolean };
 type RequestRecord = { id: string; created_at: string; quantity: number; notification_status: string; contact_json: { companyName: string; contactName: string; email: string; phone: string; notes: string }; product_snapshot_json: { model: string }; tariff_snapshot_json: { mode: string } };
-interface Props { lang: Language; isOpen: boolean; onClose: () => void; admin?: boolean; onAdminAccess?: (email: string) => void; onSessionChange?: (user: User | null) => void; }
+interface Props { lang: Language; isOpen: boolean; onClose: () => void; admin?: boolean; onAdminAccess?: (email: string) => void; onSessionChange?: (user: User | null) => void; onOpenAdmin?:()=>void; onOpenDealer?:()=>void; }
 
-export const ClientLoginModal: React.FC<Props> = ({ lang, isOpen, onClose, admin = false, onAdminAccess, onSessionChange }) => {
+export const ClientLoginModal: React.FC<Props> = ({ lang, isOpen, onClose, admin = false, onAdminAccess, onSessionChange, onOpenAdmin, onOpenDealer }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [registration,setRegistration]=useState({firstName:'',lastName:'',phone:'',companyName:''});
@@ -62,6 +62,10 @@ export const ClientLoginModal: React.FC<Props> = ({ lang, isOpen, onClose, admin
         {!admin&&<div className="text-sm"><p>{user.emailVerified?(he?'כתובת הדוא״ל אומתה':'Email verified'):(he?'כתובת הדוא״ל טרם אומתה':'Email not yet verified')}</p>{!user.emailVerified&&<button type="button" disabled={loading} className="underline text-blue-600" onClick={async()=>{setLoading(true);setMessage('');try{await post('/api/auth/verification-request',{lang});setMessage(he?'נשלח קישור לאימות כתובת הדוא״ל.':'A verification link was sent.');}catch{setMessage(he?'לא ניתן לשלוח קישור. נסו שוב מאוחר יותר.':'Could not send the link. Try again later.');}finally{setLoading(false);}}}>{he?'שליחת קישור לאימות':'Send verification link'}</button>}</div>}
         {!admin&&<><button type="button" className="underline text-blue-600 me-4" onClick={()=>{if(!showProfile||allowProfileExit())setShowProfile(value=>!value);}}>{he?'הפרטים שלי':'My profile'}</button>{showProfile&&<CustomerProfile key={user.email} lang={lang} onUnsafeChange={setProfileUnsafe} onSessionChange={next=>{setUser(next);onSessionChange?.(next);}}/>}</>}
         {!admin&&<><button type="button" className="underline text-blue-600" onClick={()=>setShowMyOrders(value=>!value)}>{he?'ההזמנות שלי':'My orders'}</button>{showMyOrders&&<CustomerOrders key={user.email} lang={lang}/>}</>}
+        {!admin&&(user.role==='admin'||!!user.permissions?.length||user.dealerAccess)&&<div className="flex flex-wrap gap-2 border-t border-[var(--border-line)] pt-4">
+          {(user.role==='admin'||!!user.permissions?.length)&&<button type="button" onClick={()=>{if(allowProfileExit()){onClose();onOpenAdmin?.();}}} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 px-4 py-2 font-semibold text-blue-600"><ShieldCheck aria-hidden="true" className="w-4 h-4"/>{he?'ניהול':'Administration'}</button>}
+          {user.dealerAccess&&<button type="button" onClick={()=>{if(allowProfileExit()){onClose();onOpenDealer?.();}}} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 px-4 py-2 font-semibold text-blue-600"><Store aria-hidden="true" className="w-4 h-4"/>{he?'אזור שותפים':'Dealer workspace'}</button>}
+        </div>}
         {admin && user.role !== 'admin' && <p className="text-sm">{he ? 'אין הרשאת מנהל לחשבון זה.' : 'This account does not have administrator access.'}</p>}
         {admin && user.role === 'admin' && <div className="flex gap-3 flex-wrap"><button onClick={loadRequests} className="px-4 py-2 rounded bg-[var(--accent)] text-white">{he ? 'בקשות שמורות' : 'Saved requests'}</button><button onClick={() => onAdminAccess?.(user.email)} className="px-4 py-2 rounded border border-[var(--border-line)]">{he ? 'Back Office' : 'Back Office'}</button></div>}
         {requests && <div className="space-y-3">{requests.length === 0 && <p>{he ? 'אין בקשות.' : 'No requests.'}</p>}{requests.map(r => <div key={r.id} className="p-4 rounded border border-[var(--border-line)] text-sm space-y-1"><p>{r.product_snapshot_json.model} · {r.quantity} · {r.tariff_snapshot_json.mode}</p><p>{r.contact_json.companyName} · {r.contact_json.contactName}</p><p><bdi>{r.contact_json.email} · {r.contact_json.phone}</bdi></p><p>{r.contact_json.notes}</p><p className="text-xs text-[var(--text-secondary)]">{new Date(r.created_at).toLocaleString()} · {r.notification_status}</p></div>)}</div>}

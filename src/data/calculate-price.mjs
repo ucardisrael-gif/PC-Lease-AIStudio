@@ -5,7 +5,7 @@ export function calculatePrice(product, mode, quantity, days) {
   if (mode === 'purchase') { unitShekels = product.purchasePrice; period = 'one_time'; }
   if (mode === 'lease') { unitShekels = product.leasePriceMonthly; period = 'month'; termMonths = product.leaseTermMonths; if (!Number.isInteger(termMonths) || termMonths < 1 || termMonths > 120) throw new Error('price_unavailable'); }
   if (mode === 'short_rental') {
-    if (!Number.isInteger(days) || days < 1 || days > 365) throw new Error('invalid_price');
+    if (!Number.isInteger(days) || days < 7 || days > 365) throw new Error('invalid_price');
     const rates = product.rentalRates;
     const shortMax=rates?.shortMaxDays ?? 6, weekMax=rates?.weekMaxDays ?? 29;
     if (!Number.isInteger(shortMax)||!Number.isInteger(weekMax)||shortMax<1||weekMax<=shortMax||weekMax>364) throw new Error('price_unavailable');

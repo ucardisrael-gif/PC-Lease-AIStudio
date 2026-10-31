@@ -1,3 +1,12 @@
+import {getDealerClientLink,saveDealerClientLink} from './dealer-clients.mjs';
+import {listLeaseSettings,saveLeaseSettings} from './lease-plans.mjs';
+import {getPublicLeaseOptions,previewLeaseSelection} from './lease-selection.mjs';
+import {listCommissionRates,saveCommissionRate} from './dealer-commission-rates.mjs';
+import {getCommissionTerms,saveCommissionTerms} from './dealer-commission-terms.mjs';
+import {listCommissionManualEntries,saveCommissionManualEntry} from './dealer-commission-manual.mjs';
+import {commissionWork,reconcileCommissionPayment} from './commission-work.mjs';
+import {attachCommissionRefund} from './commission-refunds.mjs';
+import {commissionBalance} from './commission-balance.mjs';
 import {getDealerAccess,setDealerAccess,listOwnDealerOrders} from './dealer-access.mjs';
 import {listAccessRoles,saveAccessRole,assignAccessRoles,deleteAccessRole,listAccessRoleHistory} from './access-roles.mjs';
 import { createServer } from 'node:http';
@@ -108,6 +117,8 @@ async function handleRequest(req, res) {
       res.writeHead(200).end(JSON.stringify({columns:result.rows}));
     }catch{res.writeHead(503).end(JSON.stringify({error:'unavailable'}));}return;
   }
+  if(req.method==='GET'&&req.url==='/api/lease-options'){try{res.writeHead(200).end(JSON.stringify(await getPublicLeaseOptions(db)));}catch{res.writeHead(503).end(JSON.stringify({error:'unavailable'}));}return;}
+  if(req.method==='POST'&&req.url==='/api/lease-selection/preview'){try{if(!allowedOrigin(req)){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const data=await previewLeaseSelection(db,await readJson(req));res.writeHead(200).end(JSON.stringify(data));}catch(e){const code=['invalid_quote','invalid_price','invalid_quantity','price_changed','product_unavailable'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='invalid_quote'?400:code==='unavailable'?503:409).end(JSON.stringify({error:code}));}return;}
   if (req.method === 'GET' && req.url === '/api/catalog') {
     try { res.writeHead(200).end(JSON.stringify({ products: await getCatalog(db) })); }
     catch { res.writeHead(503).end(JSON.stringify({ error: 'catalog_unavailable' })); }
@@ -150,7 +161,7 @@ async function handleRequest(req, res) {
   }
   if(['GET','POST'].includes(req.method)&&req.url==='/api/admin/order-notification-settings'){
     try{const user=await currentUser(db,sessionToken(req));if(!user||user.role!=='admin'||(req.method==='POST'&&!allowedOrigin(req))){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const settings=req.method==='GET'?await getOrderNotificationSettings(db):await saveOrderNotificationSettings(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify({settings}));}
-    catch(e){const code=['forbidden','invalid_input','version_conflict'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:code==='version_conflict'?409:503).end(JSON.stringify({error:code}));}return;
+    catch(e){const code=['forbidden','invalid_input','version_conflict','product_conflict'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:code==='version_conflict'?409:503).end(JSON.stringify({error:code}));}return;
   }
   if(req.method==='POST'&&req.url==='/api/admin/inquiries/resolve-notification'){
     try{const user=await currentUser(db,sessionToken(req));if(!can(user,'orders')||!allowedOrigin(req)){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const result=await resolvePendingInquiryNotification(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify(result));}
@@ -197,7 +208,7 @@ async function handleRequest(req, res) {
     recent.push(now); recentRequests.set(address, recent);
     try {
       const body = await readJson(req, 32768);
-      const pdf = await createOfferPdf(db, body.lines, body.lang, body.contact);
+      const pdf = await createOfferPdf(db, body.lines, body.lang, body.contact, body.leaseSelection);
       if (req.url === '/api/offer/email') {
         await sendOffer(mailer, body.contact.email, pdf, body.lang);
         res.writeHead(200).end(JSON.stringify({ sent: true }));
@@ -305,8 +316,8 @@ async function handleRequest(req, res) {
       const record=await getContractVersion(db,contractPdf[1],Number(contractPdf[2]));const pdf=await renderContractDraft(record,contractPdf[3].toLowerCase());res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition',`attachment; filename="pc-lease-draft-${record.id}-v${record.version}.pdf"`);res.writeHead(200).end(pdf);
     }catch(error){res.writeHead(error.message==='not_found'?404:error.message==='invalid_input'?400:503).end(JSON.stringify({error:error.message==='not_found'?'not_found':'unavailable'}));}return;
   }
-  if(req.method==='POST'&&req.url==='/api/admin/finance/correct-date'){try{const user=await currentUser(db,sessionToken(req));if(!can(user,'finance')||!allowedOrigin(req)){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const correction=await correctFinancialDate(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify({correction}));}catch(error){const code=['forbidden','invalid_input','not_found','already_reversed','operation_conflict'].includes(error.message)?error.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:code==='not_found'?404:['already_reversed','operation_conflict'].includes(code)?409:503).end(JSON.stringify({error:code}));}return;}
-  if(req.method==='POST'&&req.url==='/api/admin/finance/correct-amount'){try{const user=await currentUser(db,sessionToken(req));if(!can(user,'finance')||!allowedOrigin(req)){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const correction=await correctFinancialAmount(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify({correction}));}catch(error){const code=['forbidden','invalid_input','not_found','already_reversed','operation_conflict'].includes(error.message)?error.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:code==='not_found'?404:['already_reversed','operation_conflict'].includes(code)?409:503).end(JSON.stringify({error:code}));}return;}
+  if(req.method==='POST'&&req.url==='/api/admin/finance/correct-date'){try{const user=await currentUser(db,sessionToken(req));if(!can(user,'finance')||!allowedOrigin(req)){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const correction=await correctFinancialDate(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify({correction}));}catch(error){const code=['forbidden','invalid_input','not_found','already_reversed','operation_conflict','commission_review_required','refund_exceeds_payment'].includes(error.message)?error.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:code==='not_found'?404:['already_reversed','operation_conflict','commission_review_required','refund_exceeds_payment'].includes(code)?409:503).end(JSON.stringify({error:code}));}return;}
+  if(req.method==='POST'&&req.url==='/api/admin/finance/correct-amount'){try{const user=await currentUser(db,sessionToken(req));if(!can(user,'finance')||!allowedOrigin(req)){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const correction=await correctFinancialAmount(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify({correction}));}catch(error){const code=['forbidden','invalid_input','not_found','already_reversed','operation_conflict','commission_review_required','refund_exceeds_payment'].includes(error.message)?error.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:code==='not_found'?404:['already_reversed','operation_conflict','commission_review_required','refund_exceeds_payment'].includes(code)?409:503).end(JSON.stringify({error:code}));}return;}
   if(req.method==='GET'&&(req.url==='/api/admin/finance/summary'||req.url?.startsWith('/api/admin/finance/summary?'))){
     try{const user=await currentUser(db,sessionToken(req));if(!can(user,'finance')){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}
       const summary=await getFinancialSummary(db,new URL(req.url,'http://localhost').searchParams.get('requestId'));res.writeHead(200).end(JSON.stringify({summary}));
@@ -379,6 +390,7 @@ async function handleRequest(req, res) {
       res.writeHead(200).end(JSON.stringify(result));
     }catch(error){const code=['forbidden','invalid_input','product_not_found','not_found','version_conflict','duplicate_serial','asset_reserved','create_conflict'].includes(error.message)?error.message:'unavailable';res.writeHead(code==='forbidden'?403:['version_conflict','duplicate_serial','asset_reserved','create_conflict'].includes(code)?409:code==='product_not_found'||code==='not_found'?404:code==='invalid_input'?400:503).end(JSON.stringify({error:code}));}return;
   }
+  if(req.url==='/api/admin/lease-settings'&&['GET','POST'].includes(req.method)){try{const user=await currentUser(db,sessionToken(req));if(!can(user,'catalog')||(req.method==='POST'&&!allowedOrigin(req))){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const result=req.method==='GET'?await listLeaseSettings(db):await saveLeaseSettings(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify(result));}catch(e){const code=['forbidden','invalid_input','version_conflict','product_conflict'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:['version_conflict','product_conflict'].includes(code)?409:503).end(JSON.stringify({error:code}));}return;}
   if(req.method==='GET'&&req.url?.startsWith('/api/admin/products/history?')){try{const user=await currentUser(db,sessionToken(req));if(!can(user,'catalog')){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const data=await listProductHistory(db,new URL(req.url,'http://localhost').searchParams);res.writeHead(200).end(JSON.stringify(data));}catch(error){const code=['invalid_input','not_found'].includes(error.message)?error.message:'unavailable';res.writeHead(code==='invalid_input'?400:code==='not_found'?404:503).end(JSON.stringify({error:code}));}return;}
   if ((req.url === '/api/admin/products' && (req.method === 'GET' || req.method === 'POST')) || (req.url === '/api/admin/products/create' && req.method === 'POST')) {
     try {
@@ -498,6 +510,26 @@ async function handleRequest(req, res) {
       const result=req.method==='GET'?(path.endsWith('/history')?await listAccessRoleHistory(db,url.searchParams):await listAccessRoles(db)):path.endsWith('/assign')?await assignAccessRoles(db,user.id,await readJson(req)):path.endsWith('/delete')?await deleteAccessRole(db,user.id,await readJson(req)):{role:await saveAccessRole(db,user.id,await readJson(req))};
       res.writeHead(200).end(JSON.stringify(result));
     }catch(e){const code=['forbidden','invalid_input','not_found','version_conflict','name_conflict','admin_has_full_access','dealer_only_account'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='not_found'?404:code==='invalid_input'||code==='admin_has_full_access'?400:code==='unavailable'?503:409).end(JSON.stringify({error:code}));}return;
+  }
+  if(((req.method==='GET'&&(req.url?.startsWith('/api/admin/dealers/commission-work?')||req.url?.startsWith('/api/admin/dealers/commission-balance?')))||(req.method==='POST'&&['/api/admin/dealers/commission-reconcile','/api/admin/dealers/commission-refund'].includes(req.url)))){
+    try{const user=await currentUser(db,sessionToken(req));if(!user||user.role!=='admin'||(req.method==='POST'&&!allowedOrigin(req))){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}let result;if(req.method==='GET'){const p=new URL(req.url,'http://localhost');result=p.pathname.endsWith('commission-work')?await commissionWork(db,p.searchParams.get('dealerId'),p.searchParams.get('offset')||'0'):await commissionBalance(db,p.searchParams.get('dealerId'));}else{const input=await readJson(req);result=req.url.endsWith('commission-refund')?await attachCommissionRefund(db,user.id,input):await reconcileCommissionPayment(db,user.id,input);}res.writeHead(200).end(JSON.stringify(result));}
+    catch(e){const code=['forbidden','invalid_input','not_found','invalid_payment','payment_not_found','order_mismatch','already_reversed','refund_exceeds_payment','invalid_refund_date','commission_review_required','link_conflict','operation_conflict','dealer_conflict'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:['not_found','payment_not_found'].includes(code)?404:code==='unavailable'?503:409).end(JSON.stringify({error:code}));}return;
+  }
+  if ((req.method==='GET'&&req.url?.startsWith('/api/admin/dealers/commission-manual?'))||(req.method==='POST'&&req.url==='/api/admin/dealers/commission-manual')) {
+    try{const user=await currentUser(db,sessionToken(req));if(!user||user.role!=='admin'||(req.method==='POST'&&!allowedOrigin(req))){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const result=req.method==='GET'?{entries:await listCommissionManualEntries(db,new URL(req.url,'http://localhost').searchParams.get('dealerId'))}:await saveCommissionManualEntry(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify(result));}
+    catch(e){const code=['forbidden','invalid_input','not_found','operation_conflict'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:code==='not_found'?404:code==='operation_conflict'?409:503).end(JSON.stringify({error:code}));}return;
+  }
+  if ((req.method==='GET'&&req.url?.startsWith('/api/admin/dealers/commission-terms?'))||(req.method==='POST'&&req.url==='/api/admin/dealers/commission-terms')) {
+    try{const user=await currentUser(db,sessionToken(req));if(!user||user.role!=='admin'||(req.method==='POST'&&!allowedOrigin(req))){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const result=req.method==='GET'?await getCommissionTerms(db,new URL(req.url,'http://localhost').searchParams.get('requestId')):await saveCommissionTerms(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify(result));}
+    catch(e){const code=['forbidden','invalid_input','not_found','dealer_conflict','dealer_inactive','version_conflict'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:code==='not_found'?404:code==='unavailable'?503:409).end(JSON.stringify({error:code}));}return;
+  }
+  if ((req.method==='GET'&&req.url?.startsWith('/api/admin/dealers/commission-rates?'))||(req.method==='POST'&&req.url==='/api/admin/dealers/commission-rates')) {
+    try{const user=await currentUser(db,sessionToken(req));if(!user||user.role!=='admin'||(req.method==='POST'&&!allowedOrigin(req))){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const result=req.method==='GET'?{rates:await listCommissionRates(db,new URL(req.url,'http://localhost').searchParams.get('dealerId'))}:{rate:await saveCommissionRate(db,user.id,await readJson(req))};res.writeHead(200).end(JSON.stringify(result));}
+    catch(e){const code=['forbidden','invalid_input','not_found','past_date','date_conflict','operation_conflict'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:code==='not_found'?404:code==='unavailable'?503:409).end(JSON.stringify({error:code}));}return;
+  }
+  if ((req.method==='GET' && req.url?.startsWith('/api/admin/dealer-client?')) || (req.method==='POST' && req.url==='/api/admin/dealer-client')) {
+    try {const user=await currentUser(db,sessionToken(req));if(!user||user.role!=='admin'||(req.method==='POST'&&!allowedOrigin(req))){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const data=req.method==='GET'?await getDealerClientLink(db,new URL(req.url,'http://localhost').searchParams):await saveDealerClientLink(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify(data));}
+    catch(e){const code=['forbidden','invalid_input','not_found','version_conflict','dealer_inactive','not_customer'].includes(e.message)?e.message:'unavailable';res.writeHead(code==='forbidden'?403:code==='invalid_input'?400:code==='not_found'?404:code==='unavailable'?503:409).end(JSON.stringify({error:code}));}return;
   }
   if ((req.method==='GET' && req.url?.startsWith('/api/admin/dealer-access?')) || (req.method==='POST' && req.url==='/api/admin/dealer-access')) {
     try {const user=await currentUser(db,sessionToken(req));if(!user||user.role!=='admin'||(req.method==='POST'&&!allowedOrigin(req))){res.writeHead(403).end(JSON.stringify({error:'forbidden'}));return;}const result=req.method==='GET'?await getDealerAccess(db,new URL(req.url,'http://localhost').searchParams.get('userId')):await setDealerAccess(db,user.id,await readJson(req));res.writeHead(200).end(JSON.stringify(result));}
