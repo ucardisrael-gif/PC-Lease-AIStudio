@@ -344,7 +344,7 @@ export default function App() {
 
         </>}
         {section === 'featured' && <>
-      {isHomePage && content.sectionsVisibility.calculator && calculatorContent.visible && <LeaseChooser lang={lang} products={products} labels={calculatorContent} path={selectionPath} onPathChange={choosePath} onBack={backToPathChoice} onChoose={(product,planId)=>handleOpenCheckoutWithPreset(product,'lease',1,30,planId)}/>}
+      {isHomePage && content.sectionsVisibility.calculator && calculatorContent.visible && <LeaseChooser lang={lang} products={products} labels={calculatorContent} path={selectionPath} onPathChange={choosePath} onBack={backToPathChoice} onChoose={(product,planId)=>handleOpenCheckoutWithPreset(product,'lease',1,30,planId,'',[{productSlug:'',mode:'lease',quantity:1,rentalDays:30}])}/>}
       <div hidden={content.sectionsVisibility.calculator && calculatorContent.visible && selectionPath!=='model'} className="bg-[var(--bg-page)]" aria-label={lang==='he'?'בחירת מחשב וחישוב עלות':'Choose a computer and calculate cost'} onPointerEnter={()=>setModelBlockPaused(true)} onPointerLeave={()=>setModelBlockPaused(false)} onFocusCapture={()=>setModelBlockPaused(true)} onBlurCapture={event=>{if(!event.currentTarget.contains(event.relatedTarget))setModelBlockPaused(false);}}>
       {isHomePage && content.sectionsVisibility.devices && selectedProduct && featured && (
         <DeviceSelector

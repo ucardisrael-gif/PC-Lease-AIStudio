@@ -26,7 +26,7 @@ export const ProcessStory: React.FC<ProcessStoryProps> = ({ lang, content = sect
 
   if (!content.visible) return null;
   return (
-    <section id="story" className="brand-wash brand-wash-amber py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-surface)]">
+    <section id="story" className="brand-wash brand-wash-amber pt-8 pb-16 lg:pt-10 lg:pb-24 border-b border-[var(--border-line)] bg-[var(--bg-surface)]">
       <div className="max-w-[1504px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-14">

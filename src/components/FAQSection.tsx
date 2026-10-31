@@ -23,7 +23,7 @@ export const FAQSection: React.FC<FAQSectionProps> = ({ lang, content = sectionD
 
   if (!content.visible) return null;
   return (
-    <section id="faq" className="brand-wash brand-wash-violet py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-surface)]">
+    <section id="faq" className="brand-wash brand-wash-violet pt-8 pb-16 lg:pt-10 lg:pb-24 border-b border-[var(--border-line)] bg-[var(--bg-surface)]">
       <div className="max-w-[900px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-12">

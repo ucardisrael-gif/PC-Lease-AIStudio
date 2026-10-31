@@ -18,7 +18,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ lang, content = defaul
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_25%_50%,rgba(37,99,235,0.15),transparent_65%)]" />
       </div>
       <div className="relative w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 -mt-6 sm:-mt-8 lg:mt-0 lg:py-12 flex lg:justify-end lg:[direction:ltr]">
-        <div dir={lang === 'he' ? 'rtl' : 'ltr'} className="w-full max-w-xl lg:max-w-[480px] p-6 sm:p-8 lg:p-7 rounded-2xl border border-[var(--border-line)] bg-[var(--bg-surface)] lg:bg-[color-mix(in_srgb,var(--bg-surface)_85%,transparent)] lg:backdrop-blur-[2px] shadow-xl text-start">
+        <div dir={lang === 'he' ? 'rtl' : 'ltr'} className="w-full max-w-xl lg:max-w-[480px] p-6 sm:p-8 lg:p-7 rounded-2xl border border-[var(--border-line)] bg-[var(--bg-surface)] lg:bg-[color-mix(in_srgb,var(--bg-surface)_70%,transparent)] lg:backdrop-blur-[2px] shadow-xl text-start">
           <p className="text-xs font-bold tracking-wider text-[var(--accent)] uppercase">{h('kicker')}</p>
           <h1 className="mt-3 text-3xl sm:text-4xl lg:text-5xl font-black leading-tight text-[var(--text-primary)]"><span className="block">{h('title')}</span><span className="block text-[var(--accent)]">{h('accent')}</span></h1>
           <p className="mt-4 text-base sm:text-lg leading-relaxed text-[var(--text-secondary)]">{h('body')}</p>
