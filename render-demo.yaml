@@ -1,0 +1,34 @@
+# Dedicated temporary demonstration. Never point this at a business database.
+services:
+  - type: web
+    name: pc-lease-demo
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm install --prefix server && npm run build
+    startCommand: node server/demo-hosted.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: VITE_CRM_WORK_ENABLED
+        value: '1'
+      - key: PC_LEASE_CRM_WORK_ENABLED
+        value: '1'
+      - key: PC_LEASE_DEMO_BOOTSTRAP
+        value: '1'
+      - key: PC_LEASE_DATABASE_URL
+        fromDatabase:
+          name: pc-lease-demo-db
+          property: connectionString
+      - key: PC_LEASE_DEMO_EMAIL
+        sync: false
+      - key: PC_LEASE_DEMO_PASSWORD
+        sync: false
+      - key: PC_LEASE_DEMO_GATE_PASSWORD
+        sync: false
+databases:
+  - name: pc-lease-demo-db
+    databaseName: pclease_demo
+    plan: free
+    postgresMajorVersion: '18'
+    ipAllowList: []
