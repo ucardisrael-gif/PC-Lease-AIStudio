@@ -4,7 +4,7 @@ services:
     name: pc-lease-demo
     runtime: node
     plan: free
-    buildCommand: npm install && npm install --prefix server && npm run build
+    buildCommand: npm install --include=dev --legacy-peer-deps && npm install --prefix server --omit=dev --legacy-peer-deps && npm run build
     startCommand: node server/demo-hosted.mjs
     healthCheckPath: /health
     envVars:
