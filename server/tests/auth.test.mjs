@@ -274,3 +274,9 @@ test('site history pages remain stable after a new edit and reject foreign ancho
   for(const params of [{key:'trust',before:foreign},{key:'trust',before:'bad'},{key:'trust',before:first.events.at(-1).id,offset:'25'}])await assert.rejects(listSiteBlockHistory(adapter,new URLSearchParams(params)),/invalid_input/);
  }finally{await c.query('ROLLBACK');c.release();await db.end();}
 });
+test('legacy trust content keeps edited text and gains the editable computer card',async()=>{
+ const {getTrust}=await import('../site-blocks.mjs');
+ const old={visible:true,titleHe:'כותרת מותאמת',item1TitleEn:'Custom service'};
+ const block=await getTrust({query:async()=>({rowCount:1,rows:[{content:old,version:4}]})});
+ assert.equal(block.version,4);assert.equal(block.content.titleHe,old.titleHe);assert.equal(block.content.item1TitleEn,old.item1TitleEn);assert.ok(block.content.item0TitleHe);assert.ok(block.content.item0BodyEn);
+});

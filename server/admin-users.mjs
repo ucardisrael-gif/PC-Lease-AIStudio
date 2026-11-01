@@ -1,9 +1,10 @@
 import {requireTransactionAdmin as requireActiveAdmin} from './transaction-permissions.mjs';
 import {requireTransactionUser} from './transaction-permissions.mjs';
+const crmWorkPermissions=['crm_boards_view','crm_cards_edit','crm_boards_manage','crm_cards_archive','crm_history_view','crm_cards_view_all'];
 
 export async function listUsers(db, params = new URLSearchParams()) {
   const search = (params.get('search') || '').trim(), offsetText = params.get('offset') || '0', organizationId=params.get('organizationId')||'', role=params.get('role')||'all', active=params.get('active')||'all', permission=params.get('permission')||'all', after=params.get('after')||'';
-  if (search.length > 200 || !/^\d{1,7}$/.test(offsetText) || !['all','admin','customer'].includes(role) || !['all','active','inactive'].includes(active) || !['all','any','orders','catalog','content','inventory','inventory_cost','service','contracts','finance'].includes(permission) || (organizationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId))) throw new Error('invalid_input');
+  if (search.length > 200 || !/^\d{1,7}$/.test(offsetText) || !['all','admin','customer'].includes(role) || !['all','active','inactive'].includes(active) || !['all','any','orders','catalog','content','inventory','inventory_cost','service','contracts','finance',...((process.env.PC_LEASE_CRM_WORK_TEST==='1'||process.env.PC_LEASE_CRM_WORK_ENABLED==='1')?crmWorkPermissions:[])].includes(permission) || (organizationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organizationId))) throw new Error('invalid_input');
   if(after&&(Number(offsetText)!==0||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(after)))throw new Error('invalid_input');
   const offset = Number(offsetText), limit = 25;
   const client=await db.connect();try{await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
@@ -50,7 +51,7 @@ export async function setUserActive(db,actorId,input){
 }
 
 export async function saveStaffPermissions(db,actorId,input){
-  const valid=['orders','catalog','content','inventory','inventory_cost','service','contracts','finance'];
+  const valid=['orders','catalog','content','inventory','inventory_cost','service','contracts','finance'];if((process.env.PC_LEASE_CRM_WORK_TEST==='1'||process.env.PC_LEASE_CRM_WORK_ENABLED==='1'))valid.push(...crmWorkPermissions);
   if(!input||typeof input.id!=='string'||!/^[0-9a-f-]{36}$/i.test(input.id)||!Array.isArray(input.permissions)||!Array.isArray(input.expectedPermissions)||[...input.permissions,...input.expectedPermissions].some(p=>!valid.includes(p))||new Set(input.permissions).size!==input.permissions.length||new Set(input.expectedPermissions).size!==input.expectedPermissions.length||typeof input.expectedRevision!=='string'||!/^(0|[1-9]\d{0,18}):(0|[1-9]\d{0,18}):(0|[1-9]\d{0,18})$/.test(input.expectedRevision))throw new Error('invalid_input');
   const client=await db.connect();
   try{await client.query('BEGIN');await client.query('SELECT pg_advisory_xact_lock($1)',[68499002]);await requireActiveAdmin(client,actorId);const target=await client.query('SELECT id,role FROM users WHERE id=$1 FOR UPDATE',[input.id]);if(!target.rowCount)throw new Error('user_not_found');if(target.rows[0].role==='admin')throw new Error('admin_has_full_access');

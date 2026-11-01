@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, TrendingUp, ShieldCheck, Sparkles } from 'lucide-react';
+import { Building2, TrendingUp, ShieldCheck } from 'lucide-react';
 import { Language } from '../types';
 import { sectionDefaults } from '../data/section-defaults.mjs';
 import { TrustSection, TrustContent } from './TrustSection';
@@ -20,8 +20,9 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({ lang, conten
   if (!content.visible) return null;
   return (
     <section id="workspace" className="brand-wash brand-wash-cyan scroll-mt-28 py-16 lg:py-24 border-b border-[var(--border-line)] bg-[var(--bg-surface)] overflow-hidden">
+      {trust && <TrustSection lang={lang} content={trust} compact />}
       <div className="max-w-[1504px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center mt-12 lg:mt-16">
           {/* Architectural Image with 3D Motion & Zoom Effect */}
           <div
             onMouseEnter={() => setIsHovered(true)}
@@ -33,25 +34,14 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({ lang, conten
 
             <div className="relative rounded-2xl overflow-hidden border border-sky-500/30 shadow-2xl aspect-[16/10] bg-slate-900">
               <img
-                src={content.imageUrl}
+                src={content.imageUrl === '/brand/premium/workspace.webp' ? '/brand/premium/workspace-woman.webp' : content.imageUrl}
                 alt={v('imageLabel')}
-                className={`w-full h-full object-cover transition-transform duration-700 ease-out motion-reduce:transition-none motion-reduce:transform-none ${
+                className={`w-full h-full object-cover transition-transform duration-700 ease-out motion-reduce:transition-none motion-reduce:scale-100 ${
                   isHovered ? 'scale-108' : 'scale-100'
                 }`}
                 loading="lazy"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-              <div className="absolute top-4 start-4 flex flex-wrap gap-2 pointer-events-none"><span className="rounded-full bg-white/85 dark:bg-slate-900/85 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-white shadow-lg">{v('item1Title')}</span><span className="rounded-full bg-white/85 dark:bg-slate-900/85 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-slate-900 dark:text-white shadow-lg">{v('item2Title')}</span></div>
-              <div className="absolute bottom-4 start-4 end-4 flex items-center justify-between text-xs text-white/95">
-                <span className="font-mono flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                  <span>PC-LEASE · Workspace Architecture</span>
-                </span>
-                <span className="bg-sky-950/80 backdrop-blur-md border border-sky-400/30 px-3 py-1 rounded-full text-[11px] font-semibold text-sky-300">
-                  {v('imageLabel')}
-                </span>
-              </div>
             </div>
           </div>
 
@@ -90,7 +80,6 @@ export const WorkspaceSection: React.FC<WorkspaceSectionProps> = ({ lang, conten
           </div>
         </div>
       </div>
-      {trust && <TrustSection lang={lang} content={trust} compact />}
     </section>
   );
 };

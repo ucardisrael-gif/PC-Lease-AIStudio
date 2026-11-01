@@ -243,14 +243,14 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => onOpenProductDetails(product)}
+                    <a
+                      href={`/catalog?product=${encodeURIComponent(product.slug)}`}
+                      onClick={(event) => {if(!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&!event.altKey&&event.button===0){event.preventDefault();onOpenProductDetails(product);}}}
                       className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-semibold rounded border border-[var(--border-line)] bg-[var(--bg-surface)] hover:bg-[var(--badge-bg)] text-[var(--text-primary)] transition-colors cursor-pointer"
                     >
                       <span>{t.catalog.detailsBtn}</span>
                       <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
+                    </a>
 
                     <button
                       type="button"

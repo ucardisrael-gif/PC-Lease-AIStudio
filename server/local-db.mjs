@@ -6,6 +6,7 @@ import EmbeddedPostgres from 'embedded-postgres';
 import { openDatabase } from './database.mjs';
 
 const dataRoot = fileURLToPath(new URL('../data/', import.meta.url));
+if (existsSync(join(dataRoot, 'crm-work-enabled'))) process.env.PC_LEASE_CRM_WORK_ENABLED = '1';
 const clusterDir = join(dataRoot, 'postgres');
 const secretFile = join(dataRoot, 'postgres-password');
 mkdirSync(dataRoot, { recursive: true });

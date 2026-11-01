@@ -1,10 +1,12 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import {existsSync} from 'node:fs';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    ...(existsSync(path.resolve(__dirname, 'data/crm-work-enabled')) ? {define: {'import.meta.env.VITE_CRM_WORK_ENABLED': JSON.stringify('1')}} : {}),
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

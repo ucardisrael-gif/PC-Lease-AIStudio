@@ -1,0 +1,13 @@
+// Exercise the opt-in deployment mode only against a disposable synthetic cluster.
+import {mkdtempSync} from 'node:fs';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
+import {randomBytes} from 'node:crypto';
+import {createServer} from 'node:net';
+import {once} from 'node:events';
+import {spawn} from 'node:child_process';
+import EmbeddedPostgres from 'embedded-postgres';
+const probe=createServer();probe.listen(0,'127.0.0.1');await once(probe,'listening');const port=probe.address().port;await new Promise(r=>probe.close(r));
+const dir=mkdtempSync(join(tmpdir(),'pclease-crm-enable-test-')),password=randomBytes(24).toString('hex');
+const db=new EmbeddedPostgres({databaseDir:join(dir,'db'),port,user:'pclease_test',password,authMethod:'scram-sha-256',initdbFlags:['--encoding=UTF8'],persistent:true,postgresFlags:['-h','127.0.0.1'],onLog:()=>{},onError:()=>{}});
+let result=1;try{await db.initialise();await db.start();const env={...process.env,PC_LEASE_CRM_WORK_ENABLED:'1',PC_LEASE_TEST_DATABASE_URL:`postgresql://pclease_test:${password}@127.0.0.1:${port}/postgres`};delete env.PC_LEASE_CRM_WORK_TEST;const c=spawn(process.execPath,['--test','server/tests/crm-work-schema.test.mjs'],{stdio:'inherit',env});const [code]=await once(c,'exit');result=code??1}finally{await db.stop()}if(result!==0)process.exit(result);

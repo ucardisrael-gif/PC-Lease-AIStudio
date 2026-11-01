@@ -84,7 +84,7 @@ export const sectionDefaults = {
     errorHe: 'לא ניתן לשלוח את ההודעה. נסו שוב מאוחר יותר.', errorEn: 'Your message could not be sent. Please try again later.'
   },
   workspace: {
-    visible: true, imageUrl: '/brand/premium/workspace.webp',
+    visible: true, imageUrl: '/brand/premium/workspace-woman.webp',
     kickerHe: 'סביבת עבודה ארכיטקטונית', kickerEn: 'MODERN WORKSPACE MOBILITY',
     titleHe: 'מחשוב אמין בלי לפגוע בתזרים המזומנים של החברה', titleEn: 'Reliable Hardware Without Compromising Company Cash Flow',
     bodyHe: 'צוותים עסקיים זקוקים למחשבים עמידים, מאובטחים ומהירים. מודל הליסינג וההשכרה של PC-LEASE מעניק לחברות טכנולוגיה, משרדי עורכי דין ועסקים צומחים שקט נפשי מלא, ללא השקעת הון גדולה מראש.',

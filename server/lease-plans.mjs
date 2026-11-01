@@ -1,4 +1,5 @@
 import {requireTransactionPermission} from './transaction-permissions.mjs';
+import {readProductMedia} from './product-media.mjs';
 const uuid=s=>typeof s==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 const text=(s,n)=>typeof s==='string'&&s.length<=n&&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(s);
 export async function listLeaseSettings(db){const plans=(await db.query('SELECT p.*,COALESCE(array_agg(pp.product_id) FILTER(WHERE pp.product_id IS NOT NULL),ARRAY[]::text[]) AS product_ids FROM lease_plans p LEFT JOIN lease_plan_products pp ON pp.plan_id=p.id GROUP BY p.id ORDER BY p.monthly_price,p.id')).rows;const addons=(await db.query('SELECT * FROM lease_addons ORDER BY id')).rows;const products=(await db.query('SELECT id,name,edit_version FROM products ORDER BY name,id')).rows;return {plans,addons,products};}
@@ -17,9 +18,11 @@ export async function saveLeaseSettings(db,actor,input){
    await c.query('DELETE FROM lease_plan_products WHERE plan_id=$1',[input.id]);for(const id of input.products)await c.query('INSERT INTO lease_plan_products(plan_id,product_id) VALUES($1,$2)',[input.id,id]);
    await c.query('COMMIT');return {id:input.id,updated};
   }else{
+   if(input.imagePath!==undefined&&(typeof input.imagePath!=='string'||(input.imagePath!==''&&!/^\/api\/media\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.imagePath))))throw Error('invalid_input');
+   if(input.imagePath){try{await readProductMedia(c,input.imagePath.slice(11),{userId:actor,catalog:true});}catch{throw Error('invalid_input');}}
    if(!['antivirus','office','insurance','screen','other'].includes(input.category)||!text(input.heName,200)||!input.heName.trim()||!text(input.enName,200)||!input.enName.trim()||!text(input.he,2000)||!text(input.en,2000)||!(input.price===null||Number.isSafeInteger(input.price)&&input.price>=0&&input.price<=10000000)||![null,'month','once'].includes(input.billing)||typeof input.active!=='boolean'||(input.active&&(input.price===null||input.billing===null||!input.he.trim()||!input.en.trim())))throw Error('invalid_input');
-   if(input.kind==='create'){await c.query('INSERT INTO lease_addons(id,category,name_he,name_en,terms_he,terms_en,price,billing,active) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',[input.id,input.category,input.heName.trim(),input.enName.trim(),input.he.trim(),input.en.trim(),input.price,input.billing,input.active]);}
-   else{const row=(await c.query('UPDATE lease_addons SET name_he=$1,name_en=$2,terms_he=$3,terms_en=$4,price=$5,billing=$6,active=$7,category=$10,version=version+1 WHERE id=$8 AND version=$9 RETURNING id',[input.heName.trim(),input.enName.trim(),input.he.trim(),input.en.trim(),input.price,input.billing,input.active,input.id,input.version,input.category])).rows[0];if(!row)throw Error('version_conflict');}
+   if(input.kind==='create'){await c.query('INSERT INTO lease_addons(id,category,name_he,name_en,terms_he,terms_en,price,billing,active,image_path) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[input.id,input.category,input.heName.trim(),input.enName.trim(),input.he.trim(),input.en.trim(),input.price,input.billing,input.active,input.imagePath??'']);}
+   else{const row=(await c.query('UPDATE lease_addons SET name_he=$1,name_en=$2,terms_he=$3,terms_en=$4,price=$5,billing=$6,active=$7,category=$10,image_path=COALESCE($11,image_path),version=version+1 WHERE id=$8 AND version=$9 RETURNING id',[input.heName.trim(),input.enName.trim(),input.he.trim(),input.en.trim(),input.price,input.billing,input.active,input.id,input.version,input.category,input.imagePath??null])).rows[0];if(!row)throw Error('version_conflict');}
   }await c.query('COMMIT');return {id:input.id};
  }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}
 }

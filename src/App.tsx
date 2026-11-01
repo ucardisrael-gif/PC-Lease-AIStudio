@@ -200,6 +200,7 @@ export default function App() {
 
   // Modals state
   const [productDetailsItem, setProductDetailsItem] = useState<LaptopProduct | null>(null);
+  useEffect(()=>{if(!isCatalogPage||catalogStatus!=='ready')return;const slug=new URLSearchParams(window.location.search).get('product');if(slug){const match=products.find(p=>p.slug===slug&&p.published);if(match)setProductDetailsItem(match);}},[isCatalogPage,catalogStatus,products]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [pendingCustomerOrder,setPendingCustomerOrder]=useState<PendingOrder|null>(()=>readPendingOrder());
   const [isClientLoginOpen, setIsClientLoginOpen] = useState(() => /^#(?:reset|verify)=/.test(window.location.hash));
@@ -309,7 +310,7 @@ export default function App() {
         isAdmin={sessionUser?.role === 'admin' || !!sessionUser?.permissions?.length}
         sessionUser={sessionUser}
         quoteAvailable={catalogStatus === 'ready' && !!selectedProduct}
-        onOpenQuote={() => { if (selectedProduct) handleOpenCheckoutWithPreset(selectedProduct, 'lease', 1, 30); }}
+        onOpenQuote={() => { if (selectedProduct) handleOpenCheckoutWithPreset(selectedProduct, 'lease', 1, 30, '', '', [{productSlug:'',mode:'lease',quantity:1,rentalDays:30}]); }}
       />
 
       {((isAboutPage && !about) || (isContactPage && !contact)) && <div role="status" className="max-w-[1120px] mx-auto p-8 text-center text-[var(--text-secondary)]">{lang === 'he' ? 'טוען תוכן…' : 'Loading content…'} <button type="button" onClick={() => setInfoVersion(n => n + 1)} className="underline">{lang === 'he' ? 'נסה שוב' : 'Try again'}</button></div>}
@@ -322,8 +323,7 @@ export default function App() {
         <HeroSection
           lang={lang}
           content={hero.content}
-          onExploreModels={() => handleScrollTo('models')}
-          onOpenCalculator={() => handleScrollTo('calculator')}
+          onChoosePlan={() => { setSelectionPath('budget'); scrollToVisibleStart('path-options'); }}
         />
       )}
       {(isHomePage || isCatalogPage) && catalogStatus !== 'ready' && (

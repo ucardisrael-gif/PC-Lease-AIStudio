@@ -7,6 +7,25 @@ import {randomUUID} from 'node:crypto';
 import { getCatalog, seedCatalog } from '../catalog.mjs';
 import { saveMultiQuote } from '../multi-quote.mjs';
 
+test('assigning a plan from a product preserves other products and records SEO and history', async()=>{
+ const db=await openDatabase(process.env.PC_LEASE_TEST_DATABASE_URL);
+ try{
+  await seedCatalog(db);const actor=await register(db,randomUUID()+'@example.invalid','test-password-123','admin');
+  const input={slug:'plan-assignment-'+randomUUID(),model:'Test Model',category:'desktop',manufacturer:'Dell',title:{he:'בדיקה',en:'Test'},description:{he:'תיאור',en:'Description'},purchasePrice:2000,leasePriceMonthly:99,leaseTermMonths:36,rentalRates:{dailyShort:35,dailyWeek:18,monthly:199},imagePath:'',published:false};
+  const created=await createProduct(db,input,actor.id);const plan=(await db.query('SELECT id,monthly_price,version FROM lease_plans ORDER BY id LIMIT 1')).rows[0];
+  const before=await listAdminProducts(db);const other=before.find(p=>p.id!==created.id);
+  const seo={titleHe:'מחשב לעסק',titleEn:'Business computer',descriptionHe:'מחשב לעבודה',descriptionEn:'A computer for work'};
+  const saved=await saveProduct(db,{...created,seo,leasePriceMonthly:Number(plan.monthly_price),planChange:{id:plan.id,version:plan.version,previousId:null}},actor.id);
+  const found=(await listAdminProducts(db)).find(p=>p.id===created.id);assert.equal(found.leasePlanId,plan.id);assert.deepEqual(found.seo,seo);
+  assert.equal((await listAdminProducts(db)).find(p=>p.id===other.id).leasePriceMonthly,other.leasePriceMonthly);
+  const events=(await listProductHistory(db,new URLSearchParams({id:created.id}))).events;assert.equal(events[0].new_data.leasePlanId,plan.id);
+  await assert.rejects(saveProduct(db,{...saved,planChange:{id:null,previousId:null}},actor.id),/version_conflict/);
+  await assert.rejects(saveProduct(db,{...saved,seo:{...seo,titleEn:'x'.repeat(121)}},actor.id),/invalid_product/);
+  await saveProduct(db,{...saved,planChange:{id:null,previousId:plan.id}},actor.id);
+  assert.equal((await listAdminProducts(db)).find(p=>p.id===created.id).leasePlanId,null);
+ }finally{await db.end();}
+});
+
 test('multi-model order rejects an outdated price when a concurrent catalogue edit commits',async()=>{
  const db=await openDatabase(process.env.PC_LEASE_TEST_DATABASE_URL);let lock;const fixtureIds=[];
  try{

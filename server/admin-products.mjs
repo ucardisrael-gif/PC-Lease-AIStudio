@@ -3,9 +3,23 @@ import {requireTransactionPermission} from './transaction-permissions.mjs';
 import {sortProducts} from './product-order.mjs';
 import {readProductMedia} from './product-media.mjs';
 async function validateMedia(db,path,access){if(!path?.startsWith('/api/media/'))return;try{await readProductMedia(db,path.slice(11),access);}catch(error){if(error.message==='not_found')throw Error('invalid_product');throw error;}}
+async function validatePlanChange(c,change,monthly){
+ if(change===undefined)return;
+ if(!change||typeof change!=='object'||(change.id!==null&&(typeof change.id!=='string'||!change.id||change.id.length>120)))throw Error('invalid_product');
+ if(change.id===null)return;
+ if(!Number.isInteger(change.version)||change.version<1)throw Error('invalid_product');
+ const plan=(await c.query('SELECT monthly_price,version FROM lease_plans WHERE id=$1 FOR SHARE',[change.id])).rows[0];
+ if(!plan||plan.version!==change.version)throw Error('version_conflict');
+ if(monthly!==plan.monthly_price)throw Error('invalid_product');
+}
+async function applyPlanChange(c,id,change){
+ if(change===undefined)return;
+ await c.query('DELETE FROM lease_plan_products WHERE product_id=$1',[id]);
+ if(change.id!==null)await c.query('INSERT INTO lease_plan_products(plan_id,product_id) VALUES($1,$2)',[change.id,id]);
+}
 export async function listAdminProducts(db) {
-  const result = await db.query('SELECT details_json,published,edit_version FROM products ORDER BY created_at,id');
-  return sortProducts(result.rows.map(row => ({ ...row.details_json, published: row.published, editVersion: row.edit_version })));
+  const result = await db.query('SELECT p.details_json,p.published,p.edit_version,pp.plan_id FROM products p LEFT JOIN lease_plan_products pp ON pp.product_id=p.id ORDER BY p.created_at,p.id');
+  return sortProducts(result.rows.map(row => ({ ...row.details_json, published: row.published, editVersion: row.edit_version, leasePlanId:row.plan_id })));
 }
 function validateProduct(input) {
   const { id, editVersion, model, sku, title, description, purchasePrice, leasePriceMonthly, leaseTermMonths, rentalRates, published, imagePath, imageVerified, detailsConfirmed } = input ?? {};
@@ -35,11 +49,13 @@ function validateProduct(input) {
   if (imageVerified === true && !imagePath) throw new Error('invalid_product');
   if (input.gallery !== undefined && (!Array.isArray(input.gallery) || input.gallery.length > 10 || new Set(input.gallery).size !== input.gallery.length || input.gallery.some(path => typeof path !== 'string' || !/^\/api\/media\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(path)))) throw Error('invalid_product');
   if (input.customSpecs !== undefined && (!Array.isArray(input.customSpecs) || input.customSpecs.length > 30 || input.customSpecs.some(spec => !spec || typeof spec !== 'object' || Array.isArray(spec) || !['nameHe','nameEn','valueHe','valueEn'].every(k => typeof spec[k] === 'string' && spec[k].trim().length > 0 && spec[k].length <= 200 && !/[\u0000-\u001f\u007f]/.test(spec[k]))))) throw Error('invalid_product');
+  if(input.seo!==undefined && (!input.seo||typeof input.seo!=='object'||Array.isArray(input.seo)||!['titleHe','titleEn','descriptionHe','descriptionEn'].every(k=>typeof input.seo[k]==='string'&&input.seo[k].length<=(k.startsWith('title')?120:300)&&!/[\u0000-\u001f\u007f]/.test(input.seo[k]))))throw Error('invalid_product');
   const fields = { model: model.trim(), title: { he: title.he.trim(), en: title.en.trim() }, description: { he: description.he.trim(), en: description.en.trim() }, purchasePrice, leasePriceMonthly, leaseTermMonths, rentalRates };
   if (sku !== undefined) fields.sku = sku.trim();
   if (imagePath !== undefined) fields.imagePath = imagePath;
   if (input.gallery !== undefined) fields.gallery = input.gallery;
   if (input.customSpecs !== undefined) fields.customSpecs = input.customSpecs.map(spec=>Object.fromEntries(['nameHe','nameEn','valueHe','valueEn'].map(k=>[k,spec[k].trim()])));
+  if(input.seo!==undefined)fields.seo=Object.fromEntries(['titleHe','titleEn','descriptionHe','descriptionEn'].map(k=>[k,input.seo[k].trim()]));
   if (input.imageAlt !== undefined) fields.imageAlt = {he:input.imageAlt.he.trim(),en:input.imageAlt.en.trim()};
   if (imageVerified !== undefined) fields.imageVerified = imageVerified;
   if (detailsConfirmed !== undefined) fields.detailsConfirmed = detailsConfirmed;
@@ -52,13 +68,16 @@ function validateProduct(input) {
 export async function saveAdminProduct(db,input,actorId,access={userId:actorId,catalog:true}){
  const {id,editVersion,published,fields}=validateProduct(input);const c=await db.connect();try{await c.query('BEGIN');
  access=await requireTransactionPermission(c,actorId,'catalog');
+ await validatePlanChange(c,input.planChange,fields.leasePriceMonthly);
  await validateMedia(c,fields.imagePath,access);
  for(const path of fields.gallery||[]) await validateMedia(c,path,access);
  const old=(await c.query('SELECT details_json,published,edit_version FROM products WHERE id=$1 FOR UPDATE',[id])).rows[0];if(!old||old.edit_version!==editVersion)throw Error('version_conflict');
+ const oldPlan=(await c.query('SELECT plan_id FROM lease_plan_products WHERE product_id=$1',[id])).rows[0]?.plan_id??null;
+ if(input.planChange!==undefined && input.planChange.previousId!==oldPlan)throw Error('version_conflict');
  if(fields.leaseTermMonths!==36&&fields.leaseTermMonths!==old.details_json.leaseTermMonths)throw Error('invalid_product');
  const previous=old.details_json.rentalRates||{};fields.rentalRates={...fields.rentalRates,shortMaxDays:fields.rentalRates.shortMaxDays??previous.shortMaxDays??6,weekMaxDays:fields.rentalRates.weekMaxDays??previous.weekMaxDays??29};if(fields.rentalRates.shortMaxDays>=fields.rentalRates.weekMaxDays)throw Error('invalid_product');
  const row=(await c.query('UPDATE products SET name=$1,details_json=details_json || $2::jsonb,published=$3,edit_version=edit_version+1 WHERE id=$4 RETURNING details_json,published,edit_version',[fields.model,JSON.stringify(fields),published,id])).rows[0];
- const snapshot=x=>({...x.details_json,published:x.published,editVersion:x.edit_version});await c.query('INSERT INTO product_history(product_id,actor_user_id,previous_data,new_data) VALUES($1,$2,$3,$4)',[id,actorId,JSON.stringify(snapshot(old)),JSON.stringify(snapshot(row))]);await c.query('COMMIT');return snapshot(row);
+ await applyPlanChange(c,id,input.planChange);const snapshot=(x,planId)=>({...x.details_json,published:x.published,editVersion:x.edit_version,leasePlanId:planId});const saved=snapshot(row,input.planChange===undefined?oldPlan:input.planChange.id);await c.query('INSERT INTO product_history(product_id,actor_user_id,previous_data,new_data) VALUES($1,$2,$3,$4)',[id,actorId,JSON.stringify(snapshot(old,oldPlan)),JSON.stringify(saved)]);await c.query('COMMIT');return saved;
  }catch(error){await c.query('ROLLBACK');throw error;}finally{c.release();}
 }
 export async function createAdminProduct(db,input,actorId,access={userId:actorId,catalog:true}){
@@ -67,8 +86,8 @@ export async function createAdminProduct(db,input,actorId,access={userId:actorId
  if(fields.leaseTermMonths!==36)throw Error('invalid_product');
  fields.rentalRates={...fields.rentalRates,shortMaxDays:fields.rentalRates.shortMaxDays??6,weekMaxDays:fields.rentalRates.weekMaxDays??29};if(fields.rentalRates.shortMaxDays>=fields.rentalRates.weekMaxDays)throw Error('invalid_product');
  const details={...fields,id,slug:input.slug,category:input.category,manufacturer:input.manufacturer,cpu:fields.cpu||{family:'',generation:0},ramGB:fields.ramGB??0,storage:fields.storage||{capacityGB:0},screen:fields.screen||{diagonalInches:0},operatingSystem:fields.operatingSystem||'',availability:'unconfirmed',featured:fields.featured??false,imageVerified:false,detailsConfirmed:false};
- const c=await db.connect();try{await c.query('BEGIN');access=await requireTransactionPermission(c,actorId,'catalog');await validateMedia(c,fields.imagePath,access);for(const path of fields.gallery||[]) await validateMedia(c,path,access);
- const row=(await c.query('INSERT INTO products(id,slug,name,category,details_json,published) VALUES($1,$2,$3,$4,$5,false) RETURNING details_json,published,edit_version',[id,input.slug,fields.model,input.category,JSON.stringify(details)])).rows[0];const snapshot={...row.details_json,published:row.published,editVersion:row.edit_version};await c.query('INSERT INTO product_history(product_id,actor_user_id,new_data) VALUES($1,$2,$3)',[id,actorId,JSON.stringify(snapshot)]);await c.query('COMMIT');return snapshot;
+ const c=await db.connect();try{await c.query('BEGIN');access=await requireTransactionPermission(c,actorId,'catalog');await validatePlanChange(c,input.planChange,fields.leasePriceMonthly);await validateMedia(c,fields.imagePath,access);for(const path of fields.gallery||[]) await validateMedia(c,path,access);
+ const row=(await c.query('INSERT INTO products(id,slug,name,category,details_json,published) VALUES($1,$2,$3,$4,$5,false) RETURNING details_json,published,edit_version',[id,input.slug,fields.model,input.category,JSON.stringify(details)])).rows[0];await applyPlanChange(c,id,input.planChange);const snapshot={...row.details_json,published:row.published,editVersion:row.edit_version,leasePlanId:input.planChange?.id??null};await c.query('INSERT INTO product_history(product_id,actor_user_id,new_data) VALUES($1,$2,$3)',[id,actorId,JSON.stringify(snapshot)]);await c.query('COMMIT');return snapshot;
  }catch(error){await c.query('ROLLBACK');if(error.code==='23505')throw Error('duplicate_slug');throw error;}finally{c.release();}
 }
 export async function listProductHistory(db,params){

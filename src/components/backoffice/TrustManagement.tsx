@@ -2,6 +2,7 @@ import {SiteHistory,mergeHistoricalContent} from './SiteHistory';
 import React, { useEffect, useState } from 'react';
 import { Language } from '../../types';
 import { TrustBlock, TrustContent } from '../TrustSection';
+import { defaultTrust } from '../../data/trust-defaults.mjs';
 
 export function TrustManagement({ lang, onSaved, onDirtyChange }: { lang: Language; onSaved: (block: TrustBlock) => void; onDirtyChange?: (section:string, dirty:boolean)=>void }) {
   const [block, setBlock] = useState<TrustBlock | null>(null);
@@ -11,7 +12,7 @@ export function TrustManagement({ lang, onSaved, onDirtyChange }: { lang: Langua
   const load = () => {
     setStatus('loading');
     fetch('/api/admin/site/trust').then(r => { if (!r.ok) throw Error(); return r.json(); })
-      .then(data => { setBlock(data); setSavedContent(JSON.stringify(data.content)); setStatus('ready'); }).catch(() => setStatus('error'));
+      .then(data => { const content={...defaultTrust,...data.content};setBlock({...data,content}); setSavedContent(JSON.stringify(content)); setStatus('ready'); }).catch(() => setStatus('error'));
   };
   useEffect(load, []);
   const unprotected=status==='saving'||status==='uncertain'||status==='conflict'||!!block&&savedContent!==null&&JSON.stringify(block.content)!==savedContent;
@@ -20,7 +21,7 @@ export function TrustManagement({ lang, onSaved, onDirtyChange }: { lang: Langua
   const fields: { key: keyof TrustContent; he: string; en: string }[] = [
     { key: 'titleHe', he: 'כותרת בעברית', en: 'Heading in Hebrew' }, { key: 'titleEn', he: 'כותרת באנגלית', en: 'Heading in English' },
     { key: 'bodyHe', he: 'תיאור בעברית', en: 'Introduction in Hebrew' }, { key: 'bodyEn', he: 'תיאור באנגלית', en: 'Introduction in English' },
-    ...[1, 2, 3].flatMap(n => [
+    ...[0, 1, 2, 3].flatMap(n => [
       { key: `item${n}TitleHe` as keyof TrustContent, he: `כותרת ${n} בעברית`, en: `Item ${n} heading in Hebrew` },
       { key: `item${n}TitleEn` as keyof TrustContent, he: `כותרת ${n} באנגלית`, en: `Item ${n} heading in English` },
       { key: `item${n}BodyHe` as keyof TrustContent, he: `תיאור ${n} בעברית`, en: `Item ${n} description in Hebrew` },

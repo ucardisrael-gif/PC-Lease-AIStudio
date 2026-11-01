@@ -37,14 +37,14 @@ export async function getSection(db, key) {
   const row = result.rows[0];
   if (key === 'contact') return { ...row, content: { ...sectionDefaults.contact, publicEmail: row.content.recipientEmail, ...row.content } };
   if (key === 'footer' || key === 'calculator' || key === 'about') return { ...row, content: currentRentalWording(key,{ ...sectionDefaults[key], ...row.content }) };
-  if (key === 'faq') return {...row,content:currentRentalWording(key,row.content)};
+  if (key === 'faq') return {...row,content:currentRentalWording(key,{...sectionDefaults.faq,...row.content})};
   return row;
 }
 
 export async function saveSection(db, key, input, access = {}) {
   if (!Object.hasOwn(sectionDefaults, key) || !input || !Number.isSafeInteger(input.version) || input.version < 0 || !input.content || typeof input.content !== 'object' || Array.isArray(input.content)) throw new Error('invalid_block');
   const keys = Object.keys(sectionDefaults[key]);
-  const optional = key === 'about' ? ['imageAltHe','imageAltEn'] : key === 'calculator' ? keys.filter(k => /^(?:preset(?:1|3|7|14|30|90|180|365)|leaseMode|leaseUnavailable|priceOnRequest|budgetChoice|modelChoice|browseModels|pathTitle|budgetPathBody|modelPathBody)(?:He|En)$/.test(k)) : [];
+  const optional = key === 'about' ? ['imageAltHe','imageAltEn'] : key === 'faq' ? ['contactTitleHe','contactTitleEn','contactButtonHe','contactButtonEn'] : key === 'calculator' ? keys.filter(k => /^(?:preset(?:1|3|7|14|30|90|180|365)|leaseMode|leaseUnavailable|priceOnRequest|budgetChoice|modelChoice|browseModels|pathTitle|budgetPathBody|modelPathBody)(?:He|En)$/.test(k)) : [];
   if (Object.keys(input.content).some(k => !keys.includes(k)) || keys.some(k => !optional.includes(k) && !Object.hasOwn(input.content, k))) throw new Error('invalid_block');
   for (const k of keys) {
     if (optional.includes(k) && !Object.hasOwn(input.content,k)) continue;
@@ -66,7 +66,7 @@ export async function saveSection(db, key, input, access = {}) {
   if (key === 'contact' && input.content.publicWhatsApp && !/^[1-9][0-9]{7,14}$/.test(input.content.publicWhatsApp)) throw new Error('invalid_block');
   const result = input.version === 0
     ? await db.query('INSERT INTO site_blocks (block_key, content) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING content, version', [key, input.content])
-    : await db.query('UPDATE site_blocks SET content = CASE WHEN $1 IN (\'about\',\'calculator\') THEN content || $2::jsonb ELSE $2::jsonb END, version = version + 1, updated_at = now() WHERE block_key = $1 AND version = $3 RETURNING content, version', [key, input.content, input.version]);
+    : await db.query('UPDATE site_blocks SET content = CASE WHEN $1 IN (\'about\',\'calculator\',\'faq\') THEN content || $2::jsonb ELSE $2::jsonb END, version = version + 1, updated_at = now() WHERE block_key = $1 AND version = $3 RETURNING content, version', [key, input.content, input.version]);
   if (!result.rowCount) throw new Error('version_conflict');
   const saved = result.rows[0];
   return key === 'calculator' ? { ...saved, content: { ...sectionDefaults.calculator, ...saved.content } } : saved;
@@ -99,7 +99,7 @@ export async function saveHero(db, input, access = {}) {
 
 export async function getTrust(db) {
   const result = await db.query("SELECT content, version FROM site_blocks WHERE block_key = 'trust'");
-  return result.rowCount ? { content: result.rows[0].content, version: result.rows[0].version } : { content: defaultTrust, version: 0 };
+  return result.rowCount ? { content: { ...defaultTrust, ...result.rows[0].content }, version: result.rows[0].version } : { content: defaultTrust, version: 0 };
 }
 
 export async function saveTrust(db, input) {

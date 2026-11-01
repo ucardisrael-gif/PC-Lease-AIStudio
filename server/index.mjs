@@ -1,4 +1,6 @@
 import {getDealerClientLink,saveDealerClientLink} from './dealer-clients.mjs';
+import {handleCrmWork} from './crm-work-router.mjs';
+import {runColumnAutomation} from './crm-work.mjs';
 import {listLeaseSettings,saveLeaseSettings} from './lease-plans.mjs';
 import {getPublicLeaseOptions,previewLeaseSelection} from './lease-selection.mjs';
 import {listCommissionRates,saveCommissionRate} from './dealer-commission-rates.mjs';
@@ -51,6 +53,7 @@ import { pruneRateLimitBuckets } from './rate-limit-cleanup.mjs';
 import {withRequestSession} from './transaction-permissions.mjs';
 import express from 'express';
 import { fileURLToPath } from 'node:url';
+import { readFile } from 'node:fs/promises';
 
 const config = getServerConfig();
 const { port } = config;
@@ -59,9 +62,23 @@ const distPath = fileURLToPath(new URL('../dist/', import.meta.url));
 if (config.hosted) {
   frontend.disable('x-powered-by');
   frontend.use(express.static(distPath, { fallthrough: true, dotfiles: 'deny' }));
-  frontend.get(['/catalog', '/about', '/contact'], (_req, res) => res.sendFile('index.html', { root: distPath }));
 }
 const db = await openDatabase(process.env.PC_LEASE_DATABASE_URL);
+if(config.hosted){
+ frontend.get('/catalog',async(req,res,next)=>{
+  if(typeof req.query.product!=='string')return next();
+  const slug=req.query.product;if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)||slug.length>120)return res.sendStatus(404);
+  try{
+   const row=(await db.query('SELECT details_json FROM products WHERE slug=$1 AND published=true',[slug])).rows[0];if(!row)return res.sendStatus(404);
+   const p=row.details_json,esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+   const title=esc(p.seo?.titleHe||p.title?.he||p.model),description=esc(p.seo?.descriptionHe||(p.detailsConfirmed?p.description?.he:'')||'מחשב עסקי מחודש בליסינג ובהשכרה. המפרט והזמינות יאושרו בהצעת המחיר.');
+   const canonical=esc(`${config.origins[0]}/catalog?product=${encodeURIComponent(slug)}`);
+   const html=(await readFile(new URL('../dist/index.html',import.meta.url),'utf8')).replace(/<title>[^<]*<\/title>/,`<title>${title} | PC-LEASE</title>`).replace(/<meta name="description"[^>]*>/,`<meta name="description" content="${description}" />`).replace(/<meta property="og:title"[^>]*>/,`<meta property="og:title" content="${title} | PC-LEASE" />`).replace(/<meta property="og:description"[^>]*>/,`<meta property="og:description" content="${description}" />`).replace('</head>',`<link rel="canonical" href="${canonical}" /><meta property="og:url" content="${canonical}" /></head>`);
+   res.set('Cache-Control','no-store').type('html').send(html);
+  }catch{res.sendStatus(503);}
+ });
+ frontend.get(['/catalog', '/about', '/contact'], (_req, res) => res.sendFile('index.html', { root: distPath }));
+}
 const mailer = process.env.PC_LEASE_MAIL_USER && process.env.PC_LEASE_MAIL_APP_PASSWORD ? createMailer({ user: process.env.PC_LEASE_MAIL_USER, password: process.env.PC_LEASE_MAIL_APP_PASSWORD }) : null;
 const recentRequests = new Map();
 const authRequests = new Map();
@@ -88,6 +105,10 @@ async function handleRequest(req, res) {
   }
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
+  if ((process.env.PC_LEASE_CRM_WORK_TEST === '1' || process.env.PC_LEASE_CRM_WORK_ENABLED === '1') && req.url?.startsWith('/api/admin/crm-work/')) {
+    await handleCrmWork(req,res,{db,sessionToken,allowedOrigin,readJson});
+    return;
+  }
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200).end(JSON.stringify({ status: 'ok' }));
     return;
@@ -650,6 +671,12 @@ async function handleRequest(req, res) {
   res.writeHead(404).end(JSON.stringify({ error: 'not_found' }));
 }
 server.listen(port, config.host, () => console.log(`PC-LEASE server listening on ${config.host}:${port}`));
+if ((process.env.PC_LEASE_CRM_WORK_TEST === '1' || process.env.PC_LEASE_CRM_WORK_ENABLED === '1')) {
+  let working=false;
+  const timer=setInterval(async()=>{if(working)return;working=true;try{await runColumnAutomation(db)}catch(error){console.error('CRM automation failed:',error.message)}finally{working=false}},60000);
+  timer.unref();
+  server.on('close',()=>clearInterval(timer));
+}
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => server.close(async () => { mailer?.close(); await db.end(); process.exit(0); }));
 }

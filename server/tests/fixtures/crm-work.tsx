@@ -1,0 +1,1 @@
+import React from 'react';import {createRoot} from 'react-dom/client';import {CrmWorkBoard} from '../../../src/components/backoffice/CrmWorkBoard';createRoot(document.getElementById('root')!).render(<CrmWorkBoard lang="en" canManage canEdit canArchive canHistory canSetVisibility/>);

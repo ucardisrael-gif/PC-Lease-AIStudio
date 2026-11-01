@@ -3,7 +3,7 @@ import {previewQuote} from './quote-preview.mjs';
 export async function getPublicLeaseOptions(db){
  const plans=(await db.query('SELECT id,name,monthly_price,description_he,description_en,version FROM lease_plans ORDER BY monthly_price,id')).rows;
  const links=(await db.query("SELECT pp.plan_id,p.slug FROM lease_plan_products pp JOIN products p ON p.id=pp.product_id JOIN lease_plans lp ON lp.id=pp.plan_id WHERE p.published=true AND p.details_json->>'leasePriceMonthly'=lp.monthly_price::text ORDER BY pp.plan_id,p.slug")).rows;
- const addons=(await db.query("SELECT id,category,name_he,name_en,terms_he,terms_en,price,billing,version FROM lease_addons WHERE active=true AND price IS NOT NULL AND billing IS NOT NULL AND length(trim(terms_he))>0 AND length(trim(terms_en))>0 ORDER BY category,id")).rows;
+ const addons=(await db.query("SELECT id,category,name_he,name_en,terms_he,terms_en,price,billing,version,image_path FROM lease_addons WHERE active=true AND price IS NOT NULL AND billing IS NOT NULL AND length(trim(terms_he))>0 AND length(trim(terms_en))>0 ORDER BY category,id")).rows;
  return {plans:plans.map(p=>({...p,productSlugs:links.filter(x=>x.plan_id===p.id).map(x=>x.slug)})),addons};
 }
 export async function previewLeaseSelection(db,input){
