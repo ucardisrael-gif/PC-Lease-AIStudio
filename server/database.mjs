@@ -61,6 +61,26 @@ export async function openDatabase(connectionString) {
           await client.query(await readFile(new URL('./migrations/097_crm_permanent_deletion.sql', import.meta.url), 'utf8'));
           await client.query('INSERT INTO schema_migrations(version) VALUES (97)');
         }
+        const boardVisibilityPresent = await client.query('SELECT 1 FROM schema_migrations WHERE version = 98');
+        if (!boardVisibilityPresent.rowCount) {
+          await client.query(await readFile(new URL('./migrations/098_crm_board_visibility.sql', import.meta.url), 'utf8'));
+          await client.query('INSERT INTO schema_migrations(version) VALUES (98)');
+        }
+        const boardActionsPresent = await client.query('SELECT 1 FROM schema_migrations WHERE version = 99');
+        if (!boardActionsPresent.rowCount) {
+          await client.query(await readFile(new URL('./migrations/099_crm_board_actions.sql', import.meta.url), 'utf8'));
+          await client.query('INSERT INTO schema_migrations(version) VALUES (99)');
+        }
+        const cardPermissionsPresent = await client.query('SELECT 1 FROM schema_migrations WHERE version = 100');
+        if (!cardPermissionsPresent.rowCount) {
+          await client.query(await readFile(new URL('./migrations/100_crm_granular_card_permissions.sql', import.meta.url), 'utf8'));
+          await client.query('INSERT INTO schema_migrations(version) VALUES (100)');
+        }
+        const structurePermissionsPresent = await client.query('SELECT 1 FROM schema_migrations WHERE version = 101');
+        if (!structurePermissionsPresent.rowCount) {
+          await client.query(await readFile(new URL('./migrations/101_crm_structure_permissions.sql', import.meta.url), 'utf8'));
+          await client.query('INSERT INTO schema_migrations(version) VALUES (101)');
+        }
       }
       await client.query('COMMIT');
     } catch (error) {

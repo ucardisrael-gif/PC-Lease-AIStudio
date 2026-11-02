@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual, createHash } from 'node:crypto';
 import { promisify } from 'node:util';
+import {requireTransactionAdmin} from './transaction-permissions.mjs';
 const scrypt = promisify(scryptCallback);
 const digest = value => createHash('sha256').update(value).digest('hex');
 const emailOk = value => typeof value === 'string' && value.length <= 200 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -29,6 +30,11 @@ export async function register(db, email, password, role = 'customer', profile =
     const result = await db.query('INSERT INTO users (id,email,password_hash,role,first_name,last_name,phone,company_name) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,email,role', [randomUUID(), email.trim().toLowerCase(), hash, role,profile?.firstName.trim()||'',profile?.lastName.trim()||'',profile?.phone.trim()||'',profile?.companyName.trim()||'']);
     return result.rows[0];
   } catch (e) { if (e.code === '23505') throw new Error('already_exists'); throw e; }
+}
+export async function createUserAsAdmin(db,actor,email,password){
+ if(!emailOk(email))throw Error('invalid_input');const hash=await hashPassword(password),client=await db.connect();
+ try{await client.query('BEGIN');await requireTransactionAdmin(client,actor);const result=await client.query("INSERT INTO users(id,email,password_hash,role) VALUES($1,$2,$3,'customer') RETURNING id,email,role",[randomUUID(),email.trim().toLowerCase(),hash]);await client.query('COMMIT');return result.rows[0]}
+ catch(e){await client.query('ROLLBACK').catch(()=>{});if(e.code==='23505')throw Error('already_exists');throw e}finally{client.release()}
 }
 export async function login(db, email, password) {
   if (!emailOk(email)) throw new Error('invalid_credentials');
