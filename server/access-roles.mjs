@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { requireTransactionAdmin } from './transaction-permissions.mjs';
 
 const valid = ['orders','catalog','content','inventory','inventory_cost','service','contracts','finance'];
-if((process.env.PC_LEASE_CRM_WORK_TEST==='1'||process.env.PC_LEASE_CRM_WORK_ENABLED==='1'))valid.push('crm_boards_view','crm_cards_edit','crm_boards_manage','crm_cards_archive','crm_history_view','crm_cards_view_all');
+if((process.env.PC_LEASE_CRM_WORK_TEST==='1'||process.env.PC_LEASE_CRM_WORK_ENABLED==='1'))valid.push('crm_boards_view','crm_cards_edit','crm_cards_create','crm_cards_update','crm_cards_move','crm_boards_manage','crm_boards_create','crm_boards_update','crm_columns_create','crm_columns_update','crm_fields_create','crm_fields_update','crm_cards_archive','crm_history_view','crm_cards_view_all');
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const roleId = value => typeof value === 'string' && /^[a-z0-9-]{1,64}$/.test(value);
 
