@@ -720,26 +720,6 @@ export const OwnerBackOffice: React.FC<OwnerBackOfficeProps> = ({
           </button>
 
           <button
-            style={{display: fullAdmin ? undefined : 'none'}}
-            onClick={() => setActiveTab('schemas')}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-start ${
-              activeTab === 'schemas'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : isDark
-                ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Database className="w-4 h-4 text-emerald-400 shrink-0" />
-            <div className="flex items-center justify-between w-full">
-              <span>{isRtl ? 'סכמות נתונים ו-ERD' : 'Data Schemas & ERD'}</span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 dark:text-emerald-300 px-1.5 py-0.2 rounded font-mono">
-                ТЗ v1.0
-              </span>
-            </div>
-          </button>
-
-          <button
             style={{display: canOrders ? undefined : 'none'}}
             onClick={() => setActiveTab('kanban')}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-start ${
@@ -860,6 +840,12 @@ export const OwnerBackOffice: React.FC<OwnerBackOfficeProps> = ({
               </span>
             </div>
           </button>
+          {fullAdmin && <details className="mt-3 border-t border-slate-200 pt-3 dark:border-slate-700" open={activeTab === 'schemas' ? true : undefined}>
+            <summary className="cursor-pointer rounded-lg px-3 py-2.5 text-start text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">{isRtl ? 'למפתחים' : 'For developers'}</summary>
+            <nav aria-label={isRtl ? 'כלי מפתחים' : 'Developer tools'} className="ms-4 mt-1 border-s border-slate-300 ps-2 dark:border-slate-700">
+              <button type="button" onClick={() => setActiveTab('schemas')} aria-current={activeTab === 'schemas' ? 'page' : undefined} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start text-xs font-semibold ${activeTab === 'schemas' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-100' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}><Database className="h-4 w-4 shrink-0 text-emerald-400"/><span>{isRtl ? 'מבנה מסד הנתונים' : 'Database structure'}</span></button>
+            </nav>
+          </details>}
         </aside>
 
         {/* Content Pane */}
