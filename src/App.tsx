@@ -10,6 +10,7 @@ import { ProcessStory, StoryBlock } from './components/ProcessStory';
 import { CatalogSection } from './components/CatalogSection';
 import { FAQSection, FAQBlock } from './components/FAQSection';
 import { Footer } from './components/Footer';
+import { CookiePreferences, PrivacyPage } from './components/Privacy';
 import { sectionDefaults } from './data/section-defaults.mjs';
 import { AboutPage, ContactPage, AboutBlock, ContactBlock } from './components/InfoPages';
 import { ProductModal } from './components/ProductModal';
@@ -78,6 +79,8 @@ export default function App() {
   const isHomePage = !path;
   const isAboutPage = path === '/about';
   const isContactPage = path === '/contact';
+  const isPrivacyPage = path === '/privacy';
+  const [privacySettingsRequest,setPrivacySettingsRequest]=useState(0);
 
   // 2. Theme state (Light / Dark with local persistence under pc-lease-theme)
   const [theme, setTheme] = useState<Theme>(() => {
@@ -316,6 +319,7 @@ export default function App() {
       {((isAboutPage && !about) || (isContactPage && !contact)) && <div role="status" className="max-w-[1120px] mx-auto p-8 text-center text-[var(--text-secondary)]">{lang === 'he' ? 'טוען תוכן…' : 'Loading content…'} <button type="button" onClick={() => setInfoVersion(n => n + 1)} className="underline">{lang === 'he' ? 'נסה שוב' : 'Try again'}</button></div>}
       {isAboutPage && about && <AboutPage lang={lang} block={about} />}
       {isContactPage && contact && <ContactPage lang={lang} block={contact} products={products} catalogStatus={catalogStatus} />}
+      {isPrivacyPage && <PrivacyPage lang={lang} onOpenSettings={()=>setPrivacySettingsRequest(n=>n+1)}/>}
 
       {isHomePage && homeOrder.filter(section=>!['calculator','workspace'].includes(section)).map(section => <React.Fragment key={section}>
         {section === 'hero' && <>
@@ -419,7 +423,9 @@ export default function App() {
         theme={theme}
         content={footer?.content}
         contactAvailable={!!contact?.content.visible}
+        onOpenPrivacySettings={()=>setPrivacySettingsRequest(n=>n+1)}
       />
+      <CookiePreferences lang={lang} openRequest={privacySettingsRequest}/>
 
       {/* Modals & Drawers */}
       <ProductModal
@@ -443,6 +449,7 @@ export default function App() {
         initialPlanId={checkoutPlanId}
         initialAddonId={checkoutAddonId}
         initialLines={checkoutLines}
+        accountEmail={sessionUser?.email}
         onPendingChange={setPendingCustomerOrder}
         onClose={() => setIsCheckoutOpen(false)}
       />}

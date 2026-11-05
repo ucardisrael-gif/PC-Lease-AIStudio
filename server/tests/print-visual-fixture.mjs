@@ -1,0 +1,12 @@
+import {mkdir,writeFile} from 'node:fs/promises';
+import {renderQuotePdf} from '../quote-pdf.mjs';
+import {renderContractDraft} from '../contract-pdf.mjs';
+const contact={companyName:'אלפא מחשבים בע״מ',contactName:'דנה ישראלי',email:'test@example.invalid',phone:'050-1234567',taxId:'513640045',city:'תל אביב'};
+const products=[{model:'HP EliteBook 840 G4',sku:'PC-123',title:{he:'HP EliteBook 840 G4',en:'HP EliteBook 840 G4'}},{model:'Dell Latitude 5420',sku:'DL-123'}];
+const items=products.map((_,i)=>({mode:'lease',quantity:i+1,unitAmountMinor:9900,periodTotalMinor:(i+1)*9900,period:'month',termMonths:36}));
+const quote={items,leasePlan:{name:'Silver'},monthlyMinor:31700,oneTimeMinor:0,addons:[{nameHe:'מסך נוסף',nameEn:'Additional screen',termsHe:'',termsEn:'',billing:'month',quantity:1,unitMinor:2000,totalMinor:2000}]};
+const output=process.env.PC_LEASE_PRINT_FIXTURE_DIR||'tmp/pdfs';
+await mkdir(output,{recursive:true});
+await writeFile(`${output}/order-he.pdf`,await renderQuotePdf({kind:'order',orderNumber:'12345',contact,products,quote},'he'));
+await writeFile(`${output}/order-en.pdf`,await renderQuotePdf({kind:'order',orderNumber:'12345',contact,products,quote},'en'));
+await writeFile(`${output}/contract-he.pdf`,await renderContractDraft({id:'12345',version:1,requestId:'abc-123',orderNumber:'12345',title:'טיוטת חוזה',terms:'שירות ותחזוקה למשך 36 חודשים.\nדוא״ל: test@example.invalid',order:{contact,products:{quoteProducts:products},terms:{quote}}},'he'));

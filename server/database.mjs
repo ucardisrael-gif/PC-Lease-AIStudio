@@ -18,6 +18,16 @@ export async function openDatabase(connectionString) {
           await client.query('INSERT INTO schema_migrations (version) VALUES ($1)', [version]);
         }
       }
+      const addonGallery = await client.query('SELECT 1 FROM schema_migrations WHERE version = 103');
+      if (!addonGallery.rowCount) {
+        await client.query(await readFile(new URL('./migrations/103_addon_gallery.sql', import.meta.url), 'utf8'));
+        await client.query('INSERT INTO schema_migrations(version) VALUES (103)');
+      }
+      const profileDetails = await client.query('SELECT 1 FROM schema_migrations WHERE version = 102');
+      if (!profileDetails.rowCount) {
+        await client.query(await readFile(new URL('./migrations/102_user_profile_details.sql', import.meta.url), 'utf8'));
+        await client.query('INSERT INTO schema_migrations(version) VALUES (102)');
+      }
       if ((process.env.PC_LEASE_CRM_WORK_TEST === '1' || process.env.PC_LEASE_CRM_WORK_ENABLED === '1')) {
         const target = new URL(connectionString);
         if (process.env.PC_LEASE_CRM_WORK_TEST === '1' && (target.hostname !== '127.0.0.1' || target.username !== 'pclease_test' || target.pathname !== '/postgres')) throw new Error('CRM test mode requires the isolated test database');

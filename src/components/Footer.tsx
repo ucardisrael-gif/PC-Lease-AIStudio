@@ -11,11 +11,12 @@ interface FooterProps {
   navigation?: typeof sectionDefaults.navigation;
   content?: typeof sectionDefaults.footer;
   contactAvailable?: boolean;
+  onOpenPrivacySettings:()=>void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ lang, theme, content = sectionDefaults.footer, navigation = sectionDefaults.navigation, contactAvailable = false }) => {
+export const Footer: React.FC<FooterProps> = ({ lang, theme, content = sectionDefaults.footer, navigation = sectionDefaults.navigation, contactAvailable = false, onOpenPrivacySettings }) => {
   const nav = (key: 'models'|'calculator'|'story'|'catalog'|'faq'|'about'|'contact') => navigation[`${key}${lang === 'he' ? 'He' : 'En'}`];
-  if (!content.visible) return null;
+  if (!content.visible) return <footer className="p-4 flex justify-center gap-5 text-sm"><a href="/privacy" className="underline">{lang==='he'?'מדיניות פרטיות':'Privacy notice'}</a><button type="button" onClick={onOpenPrivacySettings} className="underline">{lang==='he'?'הגדרות עוגיות':'Cookie settings'}</button></footer>;
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -68,6 +69,7 @@ export const Footer: React.FC<FooterProps> = ({ lang, theme, content = sectionDe
         {/* Bottom Disclaimer & Copyright */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px]">
           <div>{lang === 'he' ? content.noteHe : content.noteEn}</div>
+          <div className="flex flex-wrap justify-center gap-4"><a href="/privacy" className="underline hover:text-blue-600">{lang==='he'?'מדיניות פרטיות':'Privacy notice'}</a><button type="button" onClick={onOpenPrivacySettings} className="underline hover:text-blue-600">{lang==='he'?'הגדרות עוגיות':'Cookie settings'}</button></div>
           <div>{lang === 'he' ? content.copyrightHe : content.copyrightEn}</div>
         </div>
       </div>

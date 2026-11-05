@@ -77,7 +77,7 @@ if(config.hosted){
    res.set('Cache-Control','no-store').type('html').send(html);
   }catch{res.sendStatus(503);}
  });
- frontend.get(['/catalog', '/about', '/contact'], (_req, res) => res.sendFile('index.html', { root: distPath }));
+ frontend.get(['/catalog', '/about', '/contact', '/privacy'], (_req, res) => res.sendFile('index.html', { root: distPath }));
 }
 const mailer = process.env.PC_LEASE_MAIL_USER && process.env.PC_LEASE_MAIL_APP_PASSWORD ? createMailer({ user: process.env.PC_LEASE_MAIL_USER, password: process.env.PC_LEASE_MAIL_APP_PASSWORD }) : null;
 const recentRequests = new Map();

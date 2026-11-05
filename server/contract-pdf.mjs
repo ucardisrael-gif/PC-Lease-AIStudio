@@ -1,9 +1,8 @@
 import PDFDocument from 'pdfkit';
 import {drawBrandLogo} from './brand-logo.mjs';
-import bidiFactory from 'bidi-js';
+import {visualPdfWords} from './pdf-rtl.mjs';
 import {fileURLToPath} from 'node:url';
 const font=fileURLToPath(new URL('./fonts/Alef-Regular.ttf',import.meta.url));
-const bidi=bidiFactory();
 export function contractOrderLines(order,lang='he'){
  const he=lang==='he',quoteItems=order?.terms?.quote?.items;
  if(order?.terms?.quote&&!Array.isArray(quoteItems))return [he?'פרטי הפריט השמור אינם זמינים':'Saved item details unavailable'];
@@ -35,10 +34,9 @@ export async function renderContractDraft(record,lang='he'){
  function line(text,size=10,color='#17233a',right=he){
   if(y+size+8>bottom){doc.addPage();y=45;}
   doc.fontSize(size).fillColor(color);
-  const rtl=/[\u0590-\u05ff]/.test(text);let words=text.split(/\s+/).filter(Boolean);
-  if(rtl){const display=bidi.getReorderedString(text,bidi.getEmbeddingLevels(text,'rtl')).replace(/[\u0590-\u05ff]+/g,run=>[...run].reverse().join(''));words=display.split(/\s+/).filter(Boolean);}
-  const gap=size*.35,widths=words.map(word=>doc.widthOfString(word));const used=widths.reduce((a,b)=>a+b,0)+Math.max(0,words.length-1)*gap;
-  let x=left+(right?Math.max(0,width-used):0);words.forEach((word,i)=>{doc.text(word,x,y,{width:Math.max(2,widths[i]+2),lineBreak:false});x+=widths[i]+gap;});y+=size+7;
+  const rtl=/[\u0590-\u05ff]/.test(text);const words=rtl?visualPdfWords(text):text.split(/\s+/).filter(Boolean).map(word=>[word]);
+  const gap=size*.35,widths=words.map(parts=>parts.reduce((sum,part)=>sum+doc.widthOfString(part),0));const used=widths.reduce((a,b)=>a+b,0)+Math.max(0,words.length-1)*gap;
+  let x=left+(right?Math.max(0,width-used):0);words.forEach(parts=>{for(const part of parts){const partWidth=doc.widthOfString(part);doc.text(part,x,y,{width:Math.max(2,partWidth+2),lineBreak:false});x+=partWidth;}x+=gap;});y+=size+7;
  }
  function paragraph(value,size=10,color='#17233a',right=he){
   doc.fontSize(size);for(const raw of String(value).split(/\r?\n/)){let current='';const words=raw.split(/\s+/).filter(Boolean);if(!words.length){line('',size,color,right);continue;}

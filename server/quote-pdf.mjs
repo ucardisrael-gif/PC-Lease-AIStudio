@@ -1,11 +1,9 @@
 import PDFDocument from 'pdfkit';
 import {drawBrandLogo} from './brand-logo.mjs';
-import bidiFactory from 'bidi-js';
+import {visualPdfWords} from './pdf-rtl.mjs';
 import { fileURLToPath } from 'node:url';
-const bidi = bidiFactory();
 const font = fileURLToPath(new URL('./fonts/Alef-Regular.ttf', import.meta.url));
 const money = n => `₪${(n / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-function visual(text) { const s = String(text); return bidi.getReorderedString(s, bidi.getEmbeddingLevels(s, 'rtl')).replace(/[\u0590-\u05ff]+/g, run => [...run].reverse().join('')); }
 export async function renderQuotePdf(record, lang = 'he') {
   const he = lang === 'he';
   const displayPrice = n => n === null || n === undefined ? (he ? 'לפי בקשה' : 'On request') : money(n);
@@ -17,14 +15,14 @@ export async function renderQuotePdf(record, lang = 'he') {
   const text=(value,x,y,w,size=10,color='#17233a',align=he?'right':'left') => {
     doc.fontSize(size).fillColor(color);
     const source=String(value);
-    if (!he || !/[\u0590-\u05ff]/.test(source)) return doc.text(source,x,y,{width:w,align,lineBreak:false,ellipsis:true});
+    if (!/[\u0590-\u05ff]/.test(source)) return doc.text(source,x,y,{width:w,align,lineBreak:false,ellipsis:true});
     // Draw visual-order words separately: fontkit otherwise drops spaces in RTL runs.
-    const tokens=visual(source).split(/\s+/).filter(Boolean), gap=size*0.35;
-    const widths=tokens.map(token=>doc.widthOfString(token));
+    const tokens=visualPdfWords(source,he?'rtl':'ltr'), gap=size*0.35;
+    const widths=tokens.map(parts=>parts.reduce((sum,part)=>sum+doc.widthOfString(part),0));
     let total=widths.reduce((a,b)=>a+b,0)+Math.max(0,tokens.length-1)*gap;
     while(tokens.length>1 && total>w){tokens.shift();total-=widths.shift()+gap;}
     let cursor=x+(align==='right'?Math.max(0,w-total):align==='center'?Math.max(0,(w-total)/2):0);
-    tokens.forEach((token,i)=>{doc.text(token,cursor,y,{width:Math.min(widths[i]+2,w),lineBreak:false,ellipsis:true});cursor+=widths[i]+gap;});
+    tokens.forEach((parts,i)=>{for(const part of parts){const partWidth=doc.widthOfString(part);doc.text(part,cursor,y,{width:Math.min(partWidth+2,w),lineBreak:false,ellipsis:true});cursor+=partWidth;}cursor+=gap;});
   };
   const wrap=(value,w,size)=>{
     doc.fontSize(size);const chunks=[];let line='';const measure=value=>{const words=value.split(/\s+/).filter(Boolean);return words.reduce((sum,word)=>sum+doc.widthOfString(word),0)+Math.max(0,words.length-1)*size*.35;};
@@ -47,11 +45,12 @@ export async function renderQuotePdf(record, lang = 'he') {
   const infoLines=info.map(([label,value])=>wrap(`${label}: ${value||'—'}`,238,10));
   const infoHeights=Array.from({length:Math.ceil(info.length/2)},(_,i)=>Math.max(infoLines[i*2]?.length||0,infoLines[i*2+1]?.length||0)*13+10);
   const infoHeight=infoHeights.reduce((a,b)=>a+b,0);doc.roundedRect(left,y-5,width,infoHeight+10,7).fillAndStroke('#f5f8fc','#dce5f0');
-  let infoY=y;for(let row=0;row<infoHeights.length;row++){for(let col=0;col<2;col++){const lines=infoLines[row*2+col];if(lines)lines.forEach((line,i)=>text(line,left+12+col*250,infoY+i*13,238,10));}infoY+=infoHeights[row];}
+  let infoY=y;for(let row=0;row<infoHeights.length;row++){for(let col=0;col<2;col++){const lines=infoLines[row*2+col];if(lines)lines.forEach((line,i)=>text(line,left+12+(he?1-col:col)*250,infoY+i*13,238,10));}infoY+=infoHeights[row];}
   y+=infoHeight+25;
   text(he?'פרטי הציוד':'ITEMS',left,y,width,11,'#1559d7'); y+=20;
   const cols=[{w:140,t:he?'דגם':'Model'},{w:75,t:he?'מק״ט':'SKU'},{w:100,t:he?'מסלול':'Plan'},{w:40,t:he?'כמות':'Qty'},{w:80,t:he?'מחיר ליחידה':'Unit price'},{w:80,t:he?'סה״כ':'Total'}];
-  const header=()=>{doc.rect(left,y,width,26).fill('#eaf1fb');let x=left;for(const col of cols){text(col.t,x+4,y+7,col.w-8,8,'#1c3553','center');x+=col.w;}y+=26;};
+  const indexes=he?[...cols.keys()].reverse():[...cols.keys()];
+  const header=()=>{doc.rect(left,y,width,26).fill('#eaf1fb');let x=left;for(const j of indexes){const col=cols[j];text(col.t,x+4,y+7,col.w-8,8,'#1c3553','center');x+=col.w;}y+=26;};
   header();
   for(let i=0;i<record.quote.items.length;i++){
     const item=record.quote.items[i], product=record.products[i]||{};
@@ -60,12 +59,13 @@ export async function renderQuotePdf(record, lang = 'he') {
     const wrapped=values.map((v,j)=>wrap(v,cols[j].w-8,j===0?8:9));const rowHeight=Math.max(35,Math.max(...wrapped.map(lines=>lines.length))*12+16);
     if(y+rowHeight>735){doc.addPage();y=45;header();}
     doc.rect(left,y,width,rowHeight).fillAndStroke(i%2?'#f8fafd':'#ffffff','#e2e8f0');
-    let x=left;wrapped.forEach((lines,j)=>{lines.forEach((line,k)=>text(line,x+4,y+8+k*12,cols[j].w-8,j===0?8:9,'#17233a',j===0?'left':'center'));x+=cols[j].w;});y+=rowHeight;
+    let x=left;for(const j of indexes){wrapped[j].forEach((line,k)=>text(line,x+4,y+8+k*12,cols[j].w-8,j===0?8:9,'#17233a',j===0?(he?'right':'left'):'center'));x+=cols[j].w;}y+=rowHeight;
   }
   for(const extra of record.quote.addons||[]){
-    const values=[he?extra.nameHe:extra.nameEn,'—',extra.billing==='month'?(he?'חודשי':'Monthly'):(he?'חד פעמי':'One time'),String(extra.quantity),displayPrice(extra.unitMinor),displayPrice(extra.totalMinor)];
+    const termsMissing=!(he?extra.termsHe:extra.termsEn)?.trim();
+    const values=[(he?extra.nameHe:extra.nameEn)+(termsMissing?(he?' — התנאים יימסרו לאחר בירור':' — terms subject to confirmation'):''),'—',extra.billing==='month'?(he?'חודשי':'Monthly'):(he?'חד פעמי':'One time'),String(extra.quantity),displayPrice(extra.unitMinor),displayPrice(extra.totalMinor)];
     const wrapped=values.map((v,j)=>wrap(v,cols[j].w-8,j===0?8:9)),height=Math.max(35,Math.max(...wrapped.map(lines=>lines.length))*12+16);
-    if(y+height>735){doc.addPage();y=45;header();}doc.rect(left,y,width,height).fillAndStroke('#f8fafd','#e2e8f0');let x=left;wrapped.forEach((lines,j)=>{lines.forEach((line,k)=>text(line,x+4,y+8+k*12,cols[j].w-8,j===0?8:9,'#17233a',j===0?'left':'center'));x+=cols[j].w;});y+=height;
+    if(y+height>735){doc.addPage();y=45;header();}doc.rect(left,y,width,height).fillAndStroke('#f8fafd','#e2e8f0');let x=left;for(const j of indexes){wrapped[j].forEach((line,k)=>text(line,x+4,y+8+k*12,cols[j].w-8,j===0?8:9,'#17233a',j===0?(he?'right':'left'):'center'));x+=cols[j].w;}y+=height;
   }
   if(y>705){doc.addPage();y=50;}
   const leaseItems=record.quote.items.filter(item=>item.mode==='lease');

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowUpRight, Mail, MessageSquare, Phone } from 'lucide-react';
 import { Language, LaptopProduct } from '../types';
 import { sectionDefaults } from '../data/section-defaults.mjs';
+import { PrivacyNotice } from './Privacy';
 
 export type AboutBlock = { content: typeof sectionDefaults.about; version: number };
 export type ContactBlock = { content: typeof sectionDefaults.contact; version: number };
@@ -60,6 +61,7 @@ export function ContactPage({ lang, block, products, catalogStatus }: { lang: La
       <div className="grid sm:grid-cols-2 gap-5"><label className="block font-semibold text-sm text-[var(--text-primary)]">{he?c.companyHe:c.companyEn}<input className={input} maxLength={200} value={company} onChange={e=>setCompany(e.target.value)} autoComplete="organization" /></label><label className="block font-semibold text-sm text-[var(--text-primary)]">{he?c.quantityHe:c.quantityEn}<input className={input} type="number" min="1" max="100000" step="1" value={quantity} onChange={e=>setQuantity(e.target.value)} /></label></div>
       <label className="block font-semibold text-sm text-[var(--text-primary)]">{he ? c.messageHe : c.messageEn} *<textarea className={input} required maxLength={4000} rows={5} value={message} onChange={e => setMessage(e.target.value)} /></label>
       </fieldset>
+      <PrivacyNotice lang={lang}/>
       {status === 'sent' && <p role="status" className="text-emerald-600">{he ? c.successHe : c.successEn}</p>}{status === 'saved' && <p role="status" className="text-amber-700">{he ? c.savedHe : c.savedEn}</p>}{status === 'error' && <p role="alert" className="text-red-600">{he ? c.errorHe : c.errorEn}</p>}
       {status==='uncertain'&&<p role="alert" className="text-amber-700">{he?'לא התקבל אישור. ייתכן שההודעה נשמרה. נסו שוב כדי לבדוק את אותה הודעה בלי ליצור כפילות.':'Confirmation was not received. The message may have been saved. Retry the same message to check without creating a duplicate.'}</p>}
       <button disabled={status === 'sending'||!pending&&!!productSlug&&!product} className="inline-flex min-h-12 items-center justify-center px-7 py-3 rounded-lg bg-blue-700 text-white font-bold disabled:opacity-50">{status === 'sending' ? (he ? 'שולח…' : 'Sending…') : pending?(he?'ניסיון חוזר':'Retry message'):(he ? c.submitHe : c.submitEn)}</button>

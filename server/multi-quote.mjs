@@ -12,8 +12,9 @@ export async function saveMultiQuote(db, payload) {
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
       [taxId, city, notes].some(v => v != null && (typeof v !== 'string' || v.length > 2000)) ||
       (lang != null && !['he','en'].includes(lang)) || (source != null && source !== 'website')) throw new Error('invalid_request');
+  const modelOptional=!!leaseSelection&&lines.length===1&&lines[0]?.productSlug===''&&lines[0]?.productVersion===0&&lines[0]?.mode==='lease';
   const selections = lines.map(l => {
-    if (!l || typeof l.productSlug !== 'string' || !l.productSlug || l.productSlug.length > 120 || !Number.isInteger(l.productVersion) || l.productVersion < 1 ||
+    if (!l || typeof l.productSlug !== 'string' || (!modelOptional&&!l.productSlug) || l.productSlug.length > 120 || !Number.isInteger(l.productVersion) || (!modelOptional&&l.productVersion < 1) ||
         !['lease','purchase','short_rental'].includes(l.mode) || !Number.isInteger(l.quantity) || l.quantity < 1 || l.quantity > 1000 ||
         (l.mode === 'short_rental' && (!Number.isInteger(l.rentalDays) || l.rentalDays < 1 || l.rentalDays > 365))) throw new Error('invalid_request');
     return { productSlug: l.productSlug, productVersion: l.productVersion, mode: l.mode, quantity: l.quantity, rentalDays: l.mode === 'short_rental' ? l.rentalDays : null };
@@ -37,21 +38,21 @@ export async function saveMultiQuote(db, payload) {
     const slugs = [...new Set(selections.map(s => s.productSlug))].sort();
     const result = await client.query('SELECT id, slug, details_json, edit_version FROM products WHERE published=true AND slug=ANY($1::text[]) ORDER BY slug FOR SHARE', [slugs]);
     const products = new Map(result.rows.map(r => [r.slug, r]));
-    const resolved = selections.map(selection => {
+    const resolved = modelOptional?[]:selections.map(selection => {
       const row = products.get(selection.productSlug);
       if (!row) throw new Error('product_unavailable');
       if (row.edit_version !== selection.productVersion) throw new Error('price_changed');
       return { product: { ...row.details_json, slug: row.slug, editVersion: row.edit_version }, ...selection };
     });
     const tax = await getTaxSettings(client, true);
-    const baseQuote=calculateQuote(resolved, tax.vat_basis_points, {allowUnpriced:true});
+    const baseQuote=modelOptional?selectedQuote.quote:calculateQuote(resolved, tax.vat_basis_points, {allowUnpriced:true});
     const quote=selectedQuote?{...baseQuote,leasePlan:selectedQuote.plan,addons:selectedQuote.extras,monthlyMinor:selectedQuote.monthlyMinor,oneTimeMinor:selectedQuote.oneTimeMinor}:baseQuote;
-    const snapshots = resolved.map(l => ({ model: l.product.model, title: l.product.title, slug: l.product.slug, sku: l.product.sku || '', purchasePrice:l.product.purchasePrice ?? null, leasePriceMonthly:l.product.leasePriceMonthly ?? null, leaseTermMonths:l.product.leaseTermMonths ?? null, rentalRates:l.product.rentalRates ? {...l.product.rentalRates,shortMaxDays:l.product.rentalRates.shortMaxDays??6,weekMaxDays:l.product.rentalRates.weekMaxDays??29} : null }));
-    const first = resolved[0], firstRow = products.get(first.productSlug);
+    const snapshots = modelOptional?selectedQuote.quote.products:resolved.map(l => ({ model: l.product.model, title: l.product.title, slug: l.product.slug, sku: l.product.sku || '', purchasePrice:l.product.purchasePrice ?? null, leasePriceMonthly:l.product.leasePriceMonthly ?? null, leaseTermMonths:l.product.leaseTermMonths ?? null, rentalRates:l.product.rentalRates ? {...l.product.rentalRates,shortMaxDays:l.product.rentalRates.shortMaxDays??6,weekMaxDays:l.product.rentalRates.weekMaxDays??29} : null }));
+    const first = modelOptional?{...selections[0],product:snapshots[0]}:resolved[0], firstRow = products.get(first.productSlug);
     const price = quote.items[0].periodTotalMinor===null ? null : { totalAmountMinor: quote.items[0].periodTotalMinor, period: quote.items[0].period, includesVat: true };
     const productSnapshot = { ...first.product, quoteProducts: snapshots };
     const terms = { mode: first.mode, price, quote, kind: 'order', language: lang ?? null, source: source ?? null };
-    const inserted = await client.query('INSERT INTO requests (id, product_id, product_snapshot_json, tariff_snapshot_json, contact_json, quantity, request_hash) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING RETURNING created_at,order_number', [id, firstRow.id, JSON.stringify(productSnapshot), JSON.stringify(terms), JSON.stringify(contact), first.quantity, hash]);
+    const inserted = await client.query('INSERT INTO requests (id, product_id, product_snapshot_json, tariff_snapshot_json, contact_json, quantity, request_hash) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING RETURNING created_at,order_number', [id, firstRow?.id ?? null, JSON.stringify(productSnapshot), JSON.stringify(terms), JSON.stringify(contact), first.quantity, hash]);
     if (!inserted.rowCount) {
       // A concurrent identical request may have committed after our initial lookup.
       const row = (await client.query('SELECT order_number, request_hash, notification_status, product_snapshot_json, tariff_snapshot_json, contact_json, created_at FROM requests WHERE id=$1', [id])).rows[0];
