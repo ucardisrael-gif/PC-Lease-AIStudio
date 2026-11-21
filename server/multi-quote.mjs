@@ -12,7 +12,7 @@ export async function saveMultiQuote(db, payload) {
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
       [taxId, city, notes].some(v => v != null && (typeof v !== 'string' || v.length > 2000)) ||
       (lang != null && !['he','en'].includes(lang)) || (source != null && source !== 'website')) throw new Error('invalid_request');
-  const modelOptional=!!leaseSelection&&lines.length===1&&lines[0]?.productSlug===''&&lines[0]?.productVersion===0&&lines[0]?.mode==='lease';
+  const modelOptional=!!leaseSelection?.planId&&lines.length===1&&lines[0]?.productSlug===''&&lines[0]?.productVersion===0&&lines[0]?.mode==='lease';
   const selections = lines.map(l => {
     if (!l || typeof l.productSlug !== 'string' || (!modelOptional&&!l.productSlug) || l.productSlug.length > 120 || !Number.isInteger(l.productVersion) || (!modelOptional&&l.productVersion < 1) ||
         !['lease','purchase','short_rental'].includes(l.mode) || !Number.isInteger(l.quantity) || l.quantity < 1 || l.quantity > 1000 ||
@@ -75,7 +75,7 @@ export async function notifyMultiQuote(db, mailer, record, adminOrigin = null) {
         const duration=item.mode==='short_rental'&&item.rentalDays!=null?` · срок: ${item.rentalDays} дн.`:item.mode==='lease'&&item.termMonths!=null?` · срок: ${item.termMonths} мес.`:'';
         const amount=item.periodTotalMinor===null?'цена по запросу':`₪${(item.periodTotalMinor / 100).toFixed(2)} (${item.period})`;
         return `${i+1}. ${product.model}${sku} · ${item.mode} · количество: ${item.quantity}${duration} · ${amount}`;
-      }).join('\n')+(record.quote.leasePlan?`\n\nПлан: ${record.quote.leasePlan.name}\n${(record.quote.addons||[]).map(x=>`${x.nameEn} · количество: ${x.quantity} · ₪${(x.totalMinor/100).toFixed(2)} (${x.billing})`).join('\n')}\nЕжемесячно: ${record.quote.monthlyMinor===null?'по запросу':`₪${(record.quote.monthlyMinor/100).toFixed(2)}`}\nРазовые позиции: ₪${(record.quote.oneTimeMinor/100).toFixed(2)}`:'');
+      }).join('\n')+((record.quote.addons?.length||record.quote.leasePlan)?`\n\n${record.quote.leasePlan?`План: ${record.quote.leasePlan.name}\n`:''}${(record.quote.addons||[]).map(x=>`${x.nameEn} · количество: ${x.quantity} · ₪${(x.totalMinor/100).toFixed(2)} (${x.billing})`).join('\n')}\nЕжемесячно: ${record.quote.monthlyMinor===null?'по запросу':`₪${(record.quote.monthlyMinor/100).toFixed(2)}`}\nРазовые позиции: ₪${(record.quote.oneTimeMinor/100).toFixed(2)}`:'');
       const settings=await getOrderNotificationSettings(db);
       const contact=record.contact;
       const extra=[contact.taxId&&`Регистрационный номер: ${contact.taxId}`,contact.city&&`Город: ${contact.city}`,contact.notes&&`Примечание: ${contact.notes}`].filter(Boolean).join('\n');

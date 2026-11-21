@@ -126,7 +126,8 @@ export default function App() {
   const [footer, setFooter] = useState<{content: typeof sectionDefaults.footer} | null>(null);
   const [navigation, setNavigation] = useState<{content: typeof sectionDefaults.navigation} | null>(null);
   const [calculatorContent, setCalculatorContent] = useState(sectionDefaults.calculator);
-  const [selectionPath,setSelectionPath] = useState<'budget'|'model'|null>(()=>/^#(models|calculator)$/.test(window.location.hash)||new URLSearchParams(window.location.search).has('product')?'model':'budget');
+  const enablePlans=import.meta.env.VITE_LEASE_PLAN_CHOOSER === 'true';
+  const [selectionPath,setSelectionPath] = useState<'budget'|'model'|null>(()=>enablePlans&&!(/^#(models|calculator)$/.test(window.location.hash)||new URLSearchParams(window.location.search).has('product'))?'budget':'model');
   const initialSectionScrolled=useRef(false);
   const [checkoutPlanId, setCheckoutPlanId] = useState('');
   const [checkoutAddonId, setCheckoutAddonId] = useState('');
@@ -327,7 +328,7 @@ export default function App() {
         <HeroSection
           lang={lang}
           content={hero.content}
-          onChoosePlan={() => { setSelectionPath('budget'); scrollToVisibleStart('path-options'); }}
+          onChoosePlan={() => { setSelectionPath(enablePlans?'budget':'model'); scrollToVisibleStart(enablePlans?'path-options':'models'); }}
         />
       )}
       {(isHomePage || isCatalogPage) && catalogStatus !== 'ready' && (
@@ -348,7 +349,7 @@ export default function App() {
 
         </>}
         {section === 'featured' && <>
-      {isHomePage && content.sectionsVisibility.calculator && calculatorContent.visible && <LeaseChooser lang={lang} products={products} labels={calculatorContent} path={selectionPath} onPathChange={choosePath} onBack={backToPathChoice} onChoose={(product,planId)=>handleOpenCheckoutWithPreset(product,'lease',1,30,planId,'',[{productSlug:'',mode:'lease',quantity:1,rentalDays:30}])}/>}
+      {enablePlans && isHomePage && content.sectionsVisibility.calculator && calculatorContent.visible && <LeaseChooser lang={lang} products={products} labels={calculatorContent} path={selectionPath} onPathChange={choosePath} onBack={backToPathChoice} onChoose={(product,planId)=>handleOpenCheckoutWithPreset(product,'lease',1,30,planId,'',[{productSlug:'',mode:'lease',quantity:1,rentalDays:30}])}/>}
       <div hidden={content.sectionsVisibility.calculator && calculatorContent.visible && selectionPath!=='model'} className="bg-[var(--bg-page)]" aria-label={lang==='he'?'בחירת מחשב וחישוב עלות':'Choose a computer and calculate cost'} onPointerEnter={()=>setModelBlockPaused(true)} onPointerLeave={()=>setModelBlockPaused(false)} onFocusCapture={()=>setModelBlockPaused(true)} onBlurCapture={event=>{if(!event.currentTarget.contains(event.relatedTarget))setModelBlockPaused(false);}}>
       {isHomePage && content.sectionsVisibility.devices && selectedProduct && featured && (
         <DeviceSelector
@@ -357,7 +358,7 @@ export default function App() {
           products={products.filter((p) => p.published)}
           selectedProduct={selectedProduct}
           paused={modelBlockPaused}
-          onBackToPath={selectionPath==='model' && content.sectionsVisibility.calculator && calculatorContent.visible ? backToPathChoice : undefined}
+          onBackToPath={enablePlans && selectionPath==='model' && content.sectionsVisibility.calculator && calculatorContent.visible ? backToPathChoice : undefined}
           calculatorContent={content.sectionsVisibility.calculator && calculatorContent.visible ? calculatorContent : undefined}
           onContinueToQuote={(prod, mode, qty, days)=>handleOpenCheckoutWithPreset(prod, mode, qty, days)}
           onContinueWithLines={(prod,mode,lines,days)=>handleOpenCheckoutWithPreset(prod,mode,lines[0].quantity,days,'','',lines)}
@@ -381,7 +382,7 @@ export default function App() {
           }
         />
       )}
-      {selectionPath==='model' && content.sectionsVisibility.calculator && calculatorContent.visible && !(content.sectionsVisibility.devices && featured?.content.visible) && <div className="max-w-[1504px] mx-auto px-4 sm:px-6 lg:px-8 pb-8"><button type="button" onClick={backToPathChoice} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-line)] bg-[var(--bg-surface)] px-5 py-3 font-semibold text-blue-600 hover:border-blue-500">{lang==='he'?<ArrowRight aria-hidden="true" className="h-4 w-4"/>:<ArrowLeft aria-hidden="true" className="h-4 w-4"/>}{lang==='he'?'חזרה לבחירת מסלול':'Back to choose a path'}</button></div>}
+      {enablePlans && selectionPath==='model' && content.sectionsVisibility.calculator && calculatorContent.visible && !(content.sectionsVisibility.devices && featured?.content.visible) && <div className="max-w-[1504px] mx-auto px-4 sm:px-6 lg:px-8 pb-8"><button type="button" onClick={backToPathChoice} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-line)] bg-[var(--bg-surface)] px-5 py-3 font-semibold text-blue-600 hover:border-blue-500">{lang==='he'?<ArrowRight aria-hidden="true" className="h-4 w-4"/>:<ArrowLeft aria-hidden="true" className="h-4 w-4"/>}{lang==='he'?'חזרה לבחירת מסלול':'Back to choose a path'}</button></div>}
       </div>
         </>}
         {section === 'story' && <>
@@ -430,6 +431,7 @@ export default function App() {
       {/* Modals & Drawers */}
       <ProductModal
         lang={lang}
+        standalone={isCatalogPage && new URLSearchParams(window.location.search).has('product')}
         contactLabel={contact?.content.visible ? (lang==='he'?contact.content.productCtaHe:contact.content.productCtaEn) : undefined}
         product={productDetailsItem}
         onClose={() => setProductDetailsItem(null)}
@@ -450,6 +452,9 @@ export default function App() {
         initialAddonId={checkoutAddonId}
         initialLines={checkoutLines}
         accountEmail={sessionUser?.email}
+        headerOffset={sessionUser?.role === 'admin' || sessionUser?.permissions?.length || sessionUser?.dealerAccess ? 104 : 72}
+        siteHeader={<Header lang={lang} navigation={navigation?.content} theme={theme} onToggleLang={handleToggleLang} onToggleTheme={handleToggleTheme} onOpenClientLogin={() => setIsClientLoginOpen(true)} onOpenAdmin={openAdmin} isDealer={!!sessionUser?.dealerAccess} onOpenDealer={openDealer} isAdmin={sessionUser?.role === 'admin' || !!sessionUser?.permissions?.length} sessionUser={sessionUser} quoteAvailable={catalogStatus === 'ready' && !!selectedProduct} onOpenQuote={()=>{}} />}
+        siteFooter={<Footer lang={lang} navigation={navigation?.content} theme={theme} content={footer?.content} contactAvailable={!!contact?.content.visible} onOpenPrivacySettings={()=>setPrivacySettingsRequest(n=>n+1)}/>}
         onPendingChange={setPendingCustomerOrder}
         onClose={() => setIsCheckoutOpen(false)}
       />}

@@ -1,10 +1,9 @@
 import React from 'react';
 import {Theme} from '../types';
 
-// The supplied originals have wide transparent margins. Frame them in CSS so
-// the artwork remains untouched and readable at navigation sizes.
+// Approved PL laptop assets are tightly framed and have a dedicated dark variant.
 export function BrandLogo({theme, className=''}:{theme:Theme;className?:string}) {
   return <span className={`brand-logo ${className}`}>
-    <img src="/brand/logo-originals/logo-transparent.png" className={theme==='dark'?'brand-logo-art brand-logo-art-dark':'brand-logo-art'} alt="PC-LEASE"/>
+    <img src={theme==='dark'?'/brand/current/logo-dark.svg':'/brand/current/logo.svg'} className={theme==='dark'?'brand-logo-art brand-logo-art-dark':'brand-logo-art'} alt="PC-LEASE" width="1000" height="260"/>
   </span>;
 }

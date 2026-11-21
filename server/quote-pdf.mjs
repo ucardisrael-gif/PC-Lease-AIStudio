@@ -72,8 +72,8 @@ export async function renderQuotePdf(record, lang = 'he') {
   const purchaseItems=record.quote.items.filter(item=>item.mode==='purchase');
   const rentalDays=[...new Set(record.quote.items.filter(item=>item.mode==='short_rental').map(item=>item.rentalDays))];
   const sums=[];
-  if(leaseItems.length) sums.push(`${he?'סה״כ חודשי לליסינג':'MONTHLY LEASE TOTAL'}: ${displayPrice(record.quote.leasePlan?record.quote.monthlyMinor:groupTotal(leaseItems))}`);
-  if(record.quote.leasePlan&&record.quote.oneTimeMinor>0)sums.push(`${he?'תוספות חד פעמיות':'ONE-TIME EXTRAS'}: ${displayPrice(record.quote.oneTimeMinor)}`);
+  if(leaseItems.length || (record.quote.addons||[]).some(item=>item.billing==='month')) sums.push(`${he?'סה״כ חודשי':'MONTHLY TOTAL'}: ${displayPrice(record.quote.monthlyMinor != null?record.quote.monthlyMinor:groupTotal(leaseItems))}`);
+  if(record.quote.oneTimeMinor>0)sums.push(`${he?'תוספות חד פעמיות':'ONE-TIME EXTRAS'}: ${displayPrice(record.quote.oneTimeMinor)}`);
   if(purchaseItems.length) sums.push(`${he?'סה״כ רכישה':'PURCHASE TOTAL'}: ${displayPrice(groupTotal(purchaseItems))}`);
   for(const days of rentalDays){const group=record.quote.items.filter(item=>item.mode==='short_rental'&&item.rentalDays===days);sums.push(`${he?`סה״כ השכרה ${days} ימים`:`RENTAL TOTAL (${days} ${days===1?'DAY':'DAYS'})`}: ${displayPrice(groupTotal(group))}`);}
   y+=16;

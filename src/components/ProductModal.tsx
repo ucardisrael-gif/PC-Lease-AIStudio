@@ -1,3 +1,4 @@
+import {ProductSpecifications} from './ProductSpecifications';
 import { rentalCost, hasRentalRates } from '../data/pricing';
 import React, { useState, useEffect } from 'react';
 import { X, Check, Cpu, HardDrive, Monitor, Shield, ArrowRight, ArrowLeft, Clock, Calendar } from 'lucide-react';
@@ -10,6 +11,8 @@ interface ProductModalProps {
   product: LaptopProduct | null;
   onClose: () => void;
   contactLabel?: string;
+  standalone?: boolean;
+  detailsOnly?: boolean;
   onProceedToQuote: (
     product: LaptopProduct,
     mode: AcquisitionMode,
@@ -23,6 +26,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   product,
   onClose,
   contactLabel,
+  standalone = false,
+  detailsOnly = false,
   onProceedToQuote,
 }) => {
   const [mode, setMode] = useState<AcquisitionMode>('lease');
@@ -50,9 +55,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
+      className={standalone ? 'fixed inset-0 z-50 overflow-y-auto bg-[var(--bg-surface)]' : 'fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-black/70 backdrop-blur-md animate-in fade-in duration-200'}
     >
-      <div className="relative w-full max-w-3xl rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-line)] shadow-2xl p-5 sm:p-8 max-h-[90vh] overflow-y-auto">
+      <div className={standalone ? 'relative mx-auto min-h-screen w-full max-w-5xl p-5 sm:p-10' : 'relative w-full max-w-3xl rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-line)] shadow-2xl p-5 sm:p-8 max-h-[90vh] overflow-y-auto'}>
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -84,55 +89,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <bdi>{product.model}</bdi>
               </h2>
               <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-2 leading-relaxed">
-                {specsConfirmed(product) ? product.description[lang] : (isRtl ? 'המפרט והזמינות יימסרו לאחר אישור.' : 'Specifications and availability will be provided after confirmation.')}
+                {specsConfirmed(product) ? product.description[lang] : ''}
               </p>
             </div>
 
-            {specsConfirmed(product)&&!!product.customSpecs?.length&&<dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl bg-[var(--bg-page)] p-3">{product.customSpecs.map((spec,i)=><div key={i}><dt className="text-xs text-[var(--text-secondary)]">{isRtl?spec.nameHe:spec.nameEn}</dt><dd className="text-sm font-semibold">{isRtl?spec.valueHe:spec.valueEn}</dd></div>)}</dl>}
-            {/* Specifications Matrix */}
-            {specsConfirmed(product) && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-lg bg-[var(--bg-page)] border border-[var(--border-subtle)] text-xs">
-              <div className="flex items-start gap-2">
-                <Cpu className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />
-                <div>
-                  <div className="text-[11px] text-[var(--text-secondary)]">{isRtl ? 'מעבד' : 'Processor'}</div>
-                  <div className="font-bold text-[var(--text-primary)] font-mono">
-                    <bdi>{product.cpu.family||'—'}{product.cpu.generation ? ` (Gen ${product.cpu.generation})` : ''}</bdi>
-                  </div>
-                </div>
-              </div>
+            <section aria-label={isRtl ? "מפרט מלא" : "Full specifications"} className="space-y-3"><h3 className="font-bold">{isRtl ? "מפרט מלא" : "Full specifications"}</h3><ProductSpecifications product={product} lang={lang}/></section>
 
-              <div className="flex items-start gap-2">
-                <HardDrive className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />
-                <div>
-                  <div className="text-[11px] text-[var(--text-secondary)]">{isRtl ? 'זיכרון ואחסון' : 'Memory and storage'}</div>
-                  <div className="font-bold text-[var(--text-primary)] font-mono tabular-nums">
-                    {product.ramGB ? `${product.ramGB}GB RAM` : '—'} / {product.storage.capacityGB ? `${product.storage.capacityGB}GB ${product.storage.type || ''}` : '—'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2">
-                <Monitor className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />
-                <div>
-                  <div className="text-[11px] text-[var(--text-secondary)]">{isRtl ? 'תצוגה ומסך' : 'Display'}</div>
-                  <div className="font-bold text-[var(--text-primary)] font-mono tabular-nums">
-                    {product.screen.diagonalInches ? `${product.screen.diagonalInches}″ ${product.screen.touch ? '(Touch)' : ''}` : '—'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2">
-                <Shield className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />
-                <div>
-                  <div className="text-[11px] text-[var(--text-secondary)]">{isRtl ? 'מערכת הפעלה' : 'Operating system'}</div>
-                  <div className="font-bold text-[var(--text-primary)] font-mono">
-                    <bdi>{product.operatingSystem||'—'}</bdi>
-                  </div>
-                </div>
-              </div>
-            </div>}
-
-
+            {!detailsOnly && <>
             {/* Mode & Quantity Selector (3 Options) */}
             <div className="space-y-3 pt-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -251,6 +214,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 {isRtl ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
               </button>
             </div>
+            </>}
           </div>
         </div>
       </div>

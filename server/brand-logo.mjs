@@ -1,11 +1,8 @@
 import {readFileSync} from 'node:fs';
 
-const original = readFileSync(new URL('../public/brand/logo-originals/logo-transparent.png',import.meta.url));
+const original = readFileSync(new URL('../public/brand/current/logo.png',import.meta.url));
 
-// Display the supplied artwork without its large transparent margins.
+// Shared by quotations, order summaries and contract drafts.
 export function drawBrandLogo(doc,x,y,width) {
-  const scale=width/463;
-  doc.save().rect(x,y,width,120*scale).clip();
-  doc.image(original,x-968*scale,y-340*scale,{width:2400*scale});
-  doc.restore();
+  doc.image(original,x,y,{width,height:width*260/1000});
 }

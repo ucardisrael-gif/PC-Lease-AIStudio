@@ -7,7 +7,7 @@ export async function getPublicLeaseOptions(db){
  return {plans:plans.map(p=>({...p,productSlugs:links.filter(x=>x.plan_id===p.id).map(x=>x.slug)})),addons};
 }
 export async function previewLeaseSelection(db,input){
- if(!input||typeof input.planId!=='string'||!Number.isInteger(input.planVersion)||!Array.isArray(input.lines)||!Array.isArray(input.addons)||input.addons.length>50)throw Error('invalid_quote');
+ if(!input||!((input.planId===null&&input.planVersion===null)||(typeof input.planId==='string'&&Number.isInteger(input.planVersion)))||!Array.isArray(input.lines)||!Array.isArray(input.addons)||input.addons.length>50)throw Error('invalid_quote');
  const c=await db.connect();try{await c.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
   const result=await calculateLeaseSelection(c,input);
   await c.query('COMMIT');return result;
@@ -16,16 +16,15 @@ export async function previewLeaseSelection(db,input){
 // The caller owns the transaction. For orders, lock each mutable price until
 // the immutable order snapshot has been saved.
 export async function calculateLeaseSelection(c,input,{lock=false}={}){
- if(!input||typeof input.planId!=='string'||!Number.isInteger(input.planVersion)||!Array.isArray(input.lines)||!Array.isArray(input.addons)||input.addons.length>50)throw Error('invalid_quote');
-  const plan=(await c.query('SELECT * FROM lease_plans WHERE id=$1'+(lock?' FOR SHARE':''),[input.planId])).rows[0];if(!plan||plan.version!==input.planVersion)throw Error('price_changed');
-  const unspecified=input.lines.length===1&&input.lines[0]?.productSlug===''&&input.lines[0]?.productVersion===0;
+ if(!input||!((input.planId===null&&input.planVersion===null)||(typeof input.planId==='string'&&Number.isInteger(input.planVersion)))||!Array.isArray(input.lines)||!Array.isArray(input.addons)||input.addons.length>50)throw Error('invalid_quote');
+  const plan=input.planId===null?null:(await c.query('SELECT * FROM lease_plans WHERE id=$1'+(lock?' FOR SHARE':''),[input.planId])).rows[0];if(input.planId!==null&&(!plan||plan.version!==input.planVersion))throw Error('price_changed');
+  const unspecified=!!plan&&input.lines.length===1&&input.lines[0]?.productSlug===''&&input.lines[0]?.productVersion===0;
   if(unspecified&&(!Number.isInteger(input.lines[0].quantity)||input.lines[0].quantity<1||input.lines[0].quantity>1000||input.lines[0].mode!=='lease'))throw Error('invalid_quote');
-  const slugs=input.lines.map(x=>x?.productSlug);const allowed=(await c.query("SELECT p.slug FROM lease_plan_products pp JOIN products p ON p.id=pp.product_id JOIN lease_plans lp ON lp.id=pp.plan_id WHERE pp.plan_id=$1 AND p.published=true AND p.details_json->>'leasePriceMonthly'=lp.monthly_price::text AND p.slug=ANY($2::text[])",[plan.id,slugs])).rows.map(x=>x.slug);
-  if(!unspecified&&input.lines.some(x=>!allowed.includes(x?.productSlug)||x?.mode!=='lease'))throw Error('invalid_quote');
+  if(plan){const slugs=input.lines.map(x=>x?.productSlug);const allowed=(await c.query("SELECT p.slug FROM lease_plan_products pp JOIN products p ON p.id=pp.product_id JOIN lease_plans lp ON lp.id=pp.plan_id WHERE pp.plan_id=$1 AND p.published=true AND p.details_json->>'leasePriceMonthly'=lp.monthly_price::text AND p.slug=ANY($2::text[])",[plan.id,slugs])).rows.map(x=>x.slug);if(!unspecified&&input.lines.some(x=>!allowed.includes(x?.productSlug)||x?.mode!=='lease'))throw Error('invalid_quote');}
   const ids=input.addons.map(a=>a?.id);if(ids.some(x=>typeof x!=='string'||!x||x.length>120)||new Set(ids).size!==ids.length||input.addons.some(a=>!Number.isInteger(a.version)||!Number.isInteger(a.quantity)||a.quantity<1||a.quantity>1000))throw Error('invalid_quote');
   const records=(await c.query('SELECT * FROM lease_addons WHERE id=ANY($1::text[]) ORDER BY id'+(lock?' FOR SHARE':''),[ids])).rows;const map=new Map(records.map(a=>[a.id,a]));
   const extras=input.addons.map(a=>{const x=map.get(a.id);if(!x||!x.active||x.version!==a.version||x.price===null||!x.billing)throw Error('price_changed');return {id:x.id,version:x.version,nameHe:x.name_he,nameEn:x.name_en,termsHe:x.terms_he,termsEn:x.terms_en,quantity:a.quantity,unitMinor:x.price*100,totalMinor:x.price*100*a.quantity,billing:x.billing};});
-  const line=input.lines[0];const amount=plan.monthly_price*100;
-  const quote=unspecified?{currency:'ILS',items:[{productSlug:'',productVersion:0,mode:'lease',quantity:line.quantity,rentalDays:null,unitAmountMinor:amount,period:'month',termMonths:36,periodTotalMinor:amount*line.quantity,contractTotalMinor:null}],subtotalMinor:null,vatBasisPoints:null,vatMinor:null,totalMinor:null,products:[{model:'Model to be selected',title:{he:'דגם ייבחר בהמשך',en:'Model to be selected'},slug:'',sku:''}]}:await previewQuote(c,input.lines);const monthly=quote.items.reduce((sum,x)=>x.periodTotalMinor===null?null:sum===null?null:sum+x.periodTotalMinor,0);const monthlyExtras=extras.filter(x=>x.billing==='month').reduce((s,x)=>s+x.totalMinor,0),once=extras.filter(x=>x.billing==='once').reduce((s,x)=>s+x.totalMinor,0);
-  return {plan:{id:plan.id,name:plan.name,version:plan.version},quote,extras,monthlyMinor:monthly===null?null:monthly+monthlyExtras,oneTimeMinor:once};
+  const line=input.lines[0];const amount=plan?plan.monthly_price*100:0;
+  const quote=unspecified?{currency:'ILS',items:[{productSlug:'',productVersion:0,mode:'lease',quantity:line.quantity,rentalDays:null,unitAmountMinor:amount,period:'month',termMonths:36,periodTotalMinor:amount*line.quantity,contractTotalMinor:null}],subtotalMinor:null,vatBasisPoints:null,vatMinor:null,totalMinor:null,products:[{model:'Model to be selected',title:{he:'דגם ייבחר בהמשך',en:'Model to be selected'},slug:'',sku:''}]}:await previewQuote(c,input.lines);const monthly=quote.items.filter(x=>x.mode==='lease').reduce((sum,x)=>x.periodTotalMinor===null?null:sum===null?null:sum+x.periodTotalMinor,0);const monthlyExtras=extras.filter(x=>x.billing==='month').reduce((s,x)=>s+x.totalMinor,0),once=extras.filter(x=>x.billing==='once').reduce((s,x)=>s+x.totalMinor,0);
+  return {plan:plan?{id:plan.id,name:plan.name,version:plan.version}:null,quote,extras,monthlyMinor:monthly===null?null:monthly+monthlyExtras,oneTimeMinor:once};
 }

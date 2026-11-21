@@ -2,15 +2,14 @@
 
 section[id] { scroll-margin-top: 5rem; }
 
-.brand-logo { display:inline-block; position:relative; aspect-ratio:3.86; flex:none; overflow:hidden; }
-.brand-logo-art { position:absolute; left:50%; top:50%; width:520%; max-width:none; height:auto; transform:translate(-50%,-50%); }
-.brand-logo-art-dark { filter:brightness(1.7); }
+.brand-logo { display:inline-block; position:relative; aspect-ratio:1000/260; flex:none; }
+.brand-logo-art { display:block; width:100%; height:auto; }
 .hero-visual { overflow:hidden; position:relative; }
 .hero-screen-logo-angle { width:100%; transform:skewY(-4deg) skewX(10deg); }
-.hero-screen-logo { position:relative; display:block; width:100%; aspect-ratio:3.86; transform-style:preserve-3d; }
+.hero-screen-logo { position:relative; display:block; width:100%; aspect-ratio:1000/260; transform-style:preserve-3d; }
 .hero-screen-logo-face { position:absolute; inset:0; overflow:hidden; backface-visibility:hidden; filter:grayscale(1) brightness(2.1) contrast(.55) brightness(1.25) drop-shadow(0 1px 3px #00152c) drop-shadow(0 0 2px #00152c); }
 .hero-screen-logo-back { transform:rotateY(180deg); }
-.hero-screen-logo img { position:absolute; left:50%; top:50%; width:520%; max-width:none; height:auto; transform:translate(-50%,-50%); }
+.hero-screen-logo img { display:block; width:100%; height:auto; }
 @media (prefers-reduced-motion:no-preference) { .hero-screen-logo { animation:hero-logo-spin 10s ease-in-out infinite; } }
 @keyframes hero-logo-spin { from { transform:rotateY(0deg); } to { transform:rotateY(360deg); } }
 @media (min-width: 1024px) { .hero-visual { position:absolute; } }

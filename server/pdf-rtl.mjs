@@ -10,6 +10,8 @@ export function visualPdfWords(value,direction='rtl') {
     .replace(/[\u0590-\u05ff]+/g,run=>[...run].reverse().join(''));
   return reordered.split(/\s+/).filter(Boolean).map(word=>{
     const match=word.match(/^([:;,.!?]+)?([\u0590-\u05ff]+(?:\.[\u0590-\u05ff]+)*)([:;,.!?]+)?$/u);
-    return match?[match[1],match[2],match[3]].filter(Boolean):[word];
+    // Font shaping reverses dotted Hebrew compounds a second time when they
+    // are drawn as one run. Draw each word and dot independently instead.
+    return match?[match[1],...match[2].split(/(\.)/),match[3]].filter(Boolean):[word];
   });
 }
