@@ -426,7 +426,8 @@ export default function App() {
         contactAvailable={!!contact?.content.visible}
         onOpenPrivacySettings={()=>setPrivacySettingsRequest(n=>n+1)}
       />
-      <CookiePreferences lang={lang} openRequest={privacySettingsRequest}/>
+      <CookiePreferences lang={lang} openRequest={privacySettingsRequest}
+        suspended={isClientLoginOpen || isAdminLoginOpen || isAdminOpen || isDealerOpen || isCheckoutOpen || !!productDetailsItem}/>
 
       {/* Modals & Drawers */}
       <ProductModal

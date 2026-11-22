@@ -16,6 +16,23 @@
 
 После установки зависимостей приложения и сервера запустите `npm run test:admin-browser`. Проверке нужен Playwright: установите его в окружение проекта или задайте `PC_LEASE_PLAYWRIGHT_PATH` как абсолютный путь к установленному пакету. Для нестандартного расположения Chrome можно задать `PC_LEASE_CHROME_PATH`; иначе на Windows используется стандартный Chrome, а при его отсутствии — браузер Playwright. Проверка создаёт отдельный временный PostgreSQL, использует вымышленные данные, запускает отдельные локальные серверы и не отправляет реальную почту. Рабочая база не используется. Проверка требует свободных локальных портов и запуска из корня проекта.
 
+## Чистая сборка и проверка перед размещением
+
+В отдельной копии проекта с Node.js 24 и pnpm 11.25 выполните из корня:
+
+```text
+pnpm install --frozen-lockfile
+pnpm --dir server install --frozen-lockfile
+pnpm run build
+pnpm run lint
+node server/test-local.mjs
+node server/test-demo-bootstrap-isolated.mjs
+```
+
+У клиентской и серверной частей отдельные lockfile. Для сборки с CRM задайте `VITE_CRM_WORK_ENABLED=1` до сборки и `PC_LEASE_CRM_WORK_ENABLED=1` на сервере. После установки Playwright выполните `node server/test-crm-release-local.mjs`, `node server/tests/privacy-preferences-browser.mjs` и `node server/tests/computer-budget-addon-browser.mjs`. Для двух последних сценариев соберите приложение без `VITE_LEASE_PLAN_CHOOSER`. Для снимков сквозного заказа создайте папку `tmp` в корне, если её ещё нет.
+
+Для закрытой демонстрации есть `render-demo.yaml`. До старта укажите отдельную пустую PostgreSQL с именем `pclease_demo`, свой HTTPS-адрес и отдельные секреты для входа на сайт и в учётную запись демо. Обёртка проверяет режим демо, заполняет базу вымышленными данными и требует пароль доступа; `GET /health` доступен без пароля для проверки хостингом. Настройки SMTP для этого режима оставьте пустыми. Проверка на реальном хостинге включает HTTPS, вход и повторный старт с сохранением тестовых данных. Подробности по разделам — в [ADMIN_ACCEPTANCE.md](ADMIN_ACCEPTANCE.md).
+
 ## 🚀 Стек технологий
 
 - **React 19** (TypeScript, хуки, модульная архитектура)

@@ -39,10 +39,18 @@ try {
     assert.ok(ready,'Demo hosted process did not become ready');
     assert.equal((await fetch(`http://127.0.0.1:${frontPort}/api/catalog`)).status,401);
     const auth='Basic '+Buffer.from(`demo:${gate}`).toString('base64');
+    const home=await fetch(`http://127.0.0.1:${frontPort}/`,{headers:{authorization:auth}});
+    assert.equal(home.status,200);
+    const entry=(await home.text()).match(/src="(\/assets\/[^"]+\.js)"/)?.[1];
+    assert.ok(entry,'Demo home did not reference the compiled entry');
+    assert.equal((await fetch(`http://127.0.0.1:${frontPort}${entry}`,{headers:{authorization:auth}})).status,200);
+    assert.equal((await fetch(`http://127.0.0.1:${frontPort}/privacy`,{headers:{authorization:auth}})).status,200);
     assert.equal((await fetch(`http://127.0.0.1:${frontPort}/api/catalog`,{headers:{authorization:auth}})).status,200);
     const login=await fetch(`http://127.0.0.1:${frontPort}/api/auth/login`,{method:'POST',headers:{authorization:auth,origin:'https://demo.example.invalid','content-type':'application/json'},body:JSON.stringify({email:args.email,password:args.password})});
     assert.equal(login.status,200);
-    const cookie=login.headers.get('set-cookie').split(';')[0];
+    const sessionCookie=login.headers.get('set-cookie');
+    assert.match(sessionCookie,/;\s*Secure(?:;|$)/i);
+    const cookie=sessionCookie.split(';')[0];
     const boards=await fetch(`http://127.0.0.1:${frontPort}/api/admin/crm-work/boards`,{headers:{authorization:auth,cookie}});
     assert.equal(boards.status,200); assert.equal((await boards.json()).boards.length,1);
   } finally { host.kill(); await once(host,'exit').catch(()=>{}); }
